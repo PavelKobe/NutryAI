@@ -127,8 +127,7 @@ export default function AddFood() {
       });
       const base64 = await base64Promise;
 
-      let fullText = '';
-      await client.ai.gentxt({
+      const result = await client.ai.gentxt({
         messages: [
           {
             role: 'system',
@@ -145,27 +144,20 @@ export default function AddFood() {
             ],
           },
         ],
-        model: 'google/gemini-2.0-flash-001',
-        stream: true,
-        onChunk: (chunk: { content?: string }) => {
-          fullText += chunk.content || '';
-        },
-        onComplete: () => {
-          try {
-            let jsonStr = fullText.trim();
-            const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-            if (jsonMatch) jsonStr = jsonMatch[0];
-            const parsed: RecognizedFood = JSON.parse(jsonStr);
-            setRecognized(parsed);
-            toast.success(`Распознано: ${parsed.name}`);
-          } catch {
-            toast.error('Не удалось распознать блюдо');
-          }
-        },
-        onError: (error: { message?: string }) => {
-          toast.error(error?.message || 'Ошибка распознавания');
-        },
+        model: 'openai/gpt-4o',
+        stream: false,
       });
+      const rawText = (result as { data?: { content?: string } })?.data?.content || '';
+      try {
+        let jsonStr = rawText.trim();
+        const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+        if (jsonMatch) jsonStr = jsonMatch[0];
+        const parsed: RecognizedFood = JSON.parse(jsonStr);
+        setRecognized(parsed);
+        toast.success(`Распознано: ${parsed.name}`);
+      } catch {
+        toast.error('Не удалось распознать блюдо');
+      }
     } catch {
       toast.error('Ошибка при обработке фото');
     } finally {

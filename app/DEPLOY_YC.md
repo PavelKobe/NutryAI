@@ -88,3 +88,75 @@ alembic upgrade head
 ## 9. Container Registry (опционально)
 
 Собрать образы локально, `docker tag`, `docker push` в `cr.yandex/...`, на VM — `docker pull` и `docker compose` с образами вместо `build`.
+
+## 10. Обновление на VM после изменений на локальном ПК
+
+Цепочка всегда такая: **ПК → GitHub → VM**.
+
+### На локальном ПК (Windows, папка с клоном `NutryAI`)
+
+1. Сохранить файлы в редакторе.
+2. В терминале в корне репозитория `NutryAI` (где лежит `.git`):
+
+```bash
+git status
+git add -A
+git commit -m "кратко что сделано"
+git push origin main
+```
+
+Если ветка не `main` — подставь свою и на VM тогда тоже эту ветку указывай (`GIT_BRANCH=...` см. ниже).
+
+### На VM по SSH
+
+Узнай, **где лежит клон** (корень репо — каталог с папкой `.git`):
+
+- типично по инструкции: `/var/www/nutriaidiary/nutriaidiary-repo` и symlink `app` → `.../nutriaidiary-repo/app`;
+- или домашний каталог, например: `/home/nutriaidiary/nutriaidiary-src` (внутри есть `app/`, `docs/`, `.git`).
+
+**Вариант A — один скрипт: `git pull` + зависимости + миграции + сборка Next + рестарт systemd**
+
+Стандартный путь к `app` на диске:
+
+```bash
+sudo bash /var/www/nutriaidiary/app/scripts/vm_deploy_pull.sh
+```
+
+Если проект в домашней папке (пример пользователя `nutriaidiary`):
+
+```bash
+sudo env APP_ROOT=/home/nutriaidiary/nutriaidiary-src/app \
+  bash /home/nutriaidiary/nutriaidiary-src/app/scripts/vm_deploy_pull.sh
+```
+
+Другая ветка:
+
+```bash
+sudo env GIT_BRANCH=имя-ветки APP_ROOT=/home/nutriaidiary/nutriaidiary-src/app \
+  bash /home/nutriaidiary/nutriaidiary-src/app/scripts/vm_deploy_pull.sh
+```
+
+**Вариант B — только подтянуть код** (без пересборки; для полноценного деплоя фронта/бэка обычно всё равно нужен билд, см. вариант A):
+
+```bash
+cd /путь/к/клону/NutryAI
+git pull --ff-only origin main
+```
+
+**Если на VM приложение в Docker**, а не systemd:
+
+```bash
+sudo env APP_ROOT=/home/nutriaidiary/nutriaidiary-src/app DEPLOY_MODE=docker \
+  bash /home/nutriaidiary/nutriaidiary-src/app/scripts/vm_deploy_pull.sh
+```
+
+(Не держи одновременно systemd на 8000/3000 и те же порты в Docker.)
+
+### Проверка после обновления
+
+```bash
+curl -sS http://127.0.0.1:8000/health
+curl -sI http://127.0.0.1:3000 | head -n1
+```
+
+Снаружи — открыть сайт и API по своим доменам.

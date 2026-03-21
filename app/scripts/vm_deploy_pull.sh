@@ -17,7 +17,9 @@
 #   DEPLOY_MODE=docker   — docker compose build + up -d + alembic в контейнере
 #
 # Переменные:
-#   APP_ROOT      — корень приложения (по умолчанию /var/www/nutriaidiary/app)
+#   APP_ROOT      — каталог app (где backend/, web/, scripts/). Пример домашней ВМ:
+#                   APP_ROOT=/home/nutriaidiary/nutriaidiary-src/app
+#                   По умолчанию: /var/www/nutriaidiary/app
 #   GIT_BRANCH    — ветка для pull (по умолчанию текущая tracked branch)
 # =============================================================================
 set -euo pipefail
@@ -79,9 +81,9 @@ echo "=== [2/2] деплой (DEPLOY_MODE=$DEPLOY_MODE) ==="
 case "$DEPLOY_MODE" in
   systemd)
     if [[ "$(id -u)" -eq 0 ]]; then
-      sudo -u "$GIT_OWNER" bash "${APP_ROOT}/scripts/vm_install_app.sh"
+      sudo -u "$GIT_OWNER" env APP_ROOT="$APP_ROOT" bash "${APP_ROOT}/scripts/vm_install_app.sh"
     else
-      bash "${APP_ROOT}/scripts/vm_install_app.sh"
+      env APP_ROOT="$APP_ROOT" bash "${APP_ROOT}/scripts/vm_install_app.sh"
     fi
     ;;
   docker)

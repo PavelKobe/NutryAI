@@ -14,7 +14,7 @@
 
 1. **Группа безопасности** (Security Group), привязанная к ВМ:
    - **Входящие:** TCP **22** (SSH — лучше ограничить своим IP / офисной подсетью), **80**, **443**.
-   - **Исходящие:** по умолчанию «всё» (нужно для apt, GitHub, Let’s Encrypt, OpenRouter, Google OAuth).
+   - **Исходящие:** по умолчанию «всё» (нужно для apt, GitHub, Let’s Encrypt, OpenRouter).
 
 2. Запомните **публичный IP** ВМ — его укажете в DNS.
 
@@ -114,7 +114,7 @@ sudo REPO_URL='git@github.com:YOU/REPO.git' DEPLOY_USER=nutriaidiary bash /tmp/v
    nano /var/www/nutriaidiary/app/.env
    ```
 
-   Заполните `DATABASE_URL`, секреты JWT/OIDC, OpenRouter, URL фронта и API (см. `DEPLOY_YC.md`).
+   Заполните `DATABASE_URL`, `JWT_SECRET_KEY`, OpenRouter, URL фронта и API (см. `DEPLOY_YC.md`).
 
 2. **Фронт (Next)** — для systemd используется **`/var/www/nutriaidiary/app/web/.env.production`**:
 
@@ -186,7 +186,7 @@ sudo nginx -t && sudo systemctl reload nginx
 ## Этап I. Финальная проверка
 
 - `https://api.nutriaidiary.com/health`
-- Открытие главной, вход через Google
+- Открытие главной, регистрация / вход по email
 - Подробный чеклист — в `DEPLOY_YC.md`, раздел «Проверка».
 
 ---

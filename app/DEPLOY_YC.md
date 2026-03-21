@@ -5,7 +5,6 @@
 ## 1. Ротация секретов (обязательно, если ключи светились)
 
 - OpenRouter: новый ключ, старый отозвать.
-- Google OAuth: новый client secret в [Google Cloud Console](https://console.cloud.google.com/).
 - Значения только в `.env`, Lockbox или переменных VM — не в git.
 
 ## 2. Managed PostgreSQL
@@ -21,7 +20,7 @@
 Скрипт первичной настройки Ubuntu-VM (Nginx, UFW, Node, Python, опционально PostgreSQL и Docker): [`scripts/vm_bootstrap_yandex.sh`](scripts/vm_bootstrap_yandex.sh). Запуск от root: задайте `NEW_USER_PASSWORD`, при необходимости `INSTALL_LOCAL_POSTGRES=0` (только Managed PG) или `INSTALL_DOCKER=1`.
 
 1. VPC, security group: вход **443** (и **80** при необходимости) на reverse-proxy; **8000/3000** только с localhost, если прокси на той же VM.
-2. Исходящий HTTPS: `openrouter.ai`, `oauth2.googleapis.com`, `accounts.google.com`, хосты Yandex для БД.
+2. Исходящий HTTPS: `openrouter.ai`, хосты Yandex для БД.
 3. VM: установить Docker / Docker Compose, склонировать репозиторий, положить `.env` в `NutryAI/app/`.
 
 ## 4. Переменные окружения (бэкенд)
@@ -32,16 +31,12 @@
 |------------|------------|
 | `DATABASE_URL` | PostgreSQL async |
 | `JWT_SECRET_KEY` | Подпись JWT сессии приложения |
-| `OIDC_*` | Google OIDC |
 | `FRONTEND_URL` | `https://nutriaidiary.com` (канонический фронт) |
 | `PYTHON_BACKEND_URL` | `https://api.nutriaidiary.com` |
 | `APP_AI_BASE_URL` | `https://openrouter.ai/api/v1` |
 | `APP_AI_KEY` | Ключ OpenRouter |
 
-Google Console:
-
-- **Authorized redirect URIs:** `https://api.nutriaidiary.com/api/v1/auth/callback`
-- **JavaScript origins:** `https://nutriaidiary.com`, `https://www.nutriaidiary.com` (и при отладке по HTTP — соответствующие `http://`, плюс localhost для dev)
+Аутентификация: регистрация и вход по **email + пароль** (`POST /api/v1/auth/register`, `POST /api/v1/auth/login`), JWT в `Authorization: Bearer` (фронт хранит в `localStorage` под ключом `token`).
 
 Дополнительные CORS-origin через запятую: `CORS_EXTRA_ORIGINS=https://staging.example.com`
 
@@ -86,7 +81,7 @@ alembic upgrade head
 ## 8. Проверка
 
 - `GET https://api.nutriaidiary.com/health`
-- Логин Google → редирект на фронт
+- Регистрация / вход по email
 - Запросы к ИИ с авторизованным пользователем
 - Главная: view-source, видны meta/OG; `/sitemap.xml`, `/robots.txt`
 

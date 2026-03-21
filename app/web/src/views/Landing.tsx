@@ -77,8 +77,8 @@ export default function Landing() {
     checkAuth();
   }, []);
 
-  const handleLogin = async () => {
-    await client.auth.toLogin();
+  const handleLogin = () => {
+    router.push('/login');
   };
 
   if (loading) {

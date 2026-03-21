@@ -65,11 +65,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = async () => {
-    try {
-      setError(null);
-      await client.auth.login();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
     }
   };
 

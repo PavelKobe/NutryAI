@@ -1,5 +1,7 @@
 /* MetaGPTX SDK touches `window` at init — lazy-load only in the browser. */
 
+import { getAPIBaseURL } from './config';
+
 const serverStub: unknown = new Proxy(
   function stubFn() {
     return Promise.resolve({ data: null });
@@ -14,7 +16,8 @@ function getRealClient(): ReturnType<
   typeof import('@metagptx/web-sdk').createClient
 > {
   const { createClient } = require('@metagptx/web-sdk') as typeof import('@metagptx/web-sdk');
-  return createClient();
+  const base = getAPIBaseURL().replace(/\/$/, '');
+  return createClient({ baseURL: base });
 }
 
 let browserClient: ReturnType<

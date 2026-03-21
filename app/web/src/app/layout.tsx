@@ -31,14 +31,15 @@ export const metadata: Metadata = {
     description: 'Умный дневник питания и ИИ-нутрициолог',
   },
   robots: { index: true, follow: true },
-  icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="alternate icon" href="/favicon.ico" />
+      </head>
       <body className={inter.className}>
         <Providers>{children}</Providers>
       </body>

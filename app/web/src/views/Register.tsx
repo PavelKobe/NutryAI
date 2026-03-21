@@ -2,14 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { persistSessionToken, registerWithEmail } from '@/lib/emailAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export default function Register() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -27,8 +25,7 @@ export default function Register() {
     try {
       const { token } = await registerWithEmail(email.trim(), password, name.trim() || undefined);
       persistSessionToken(token);
-      router.push('/onboarding');
-      router.refresh();
+      window.location.href = '/onboarding';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка регистрации');
     } finally {

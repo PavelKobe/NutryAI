@@ -31,6 +31,9 @@ export const metadata: Metadata = {
     description: 'Умный дневник питания и ИИ-нутрициолог',
   },
   robots: { index: true, follow: true },
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

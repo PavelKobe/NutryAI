@@ -4,12 +4,15 @@
 
 import asyncio
 import importlib
+import os
 import pkgutil
 from logging.config import fileConfig
+from pathlib import Path
 
 import models
 from alembic import context
 from core.database import Base
+from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -21,6 +24,13 @@ config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# app/.env (рядом с каталогом backend/) — как у systemd EnvironmentFile
+_app_env = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(_app_env)
+_db_url = (os.environ.get("DATABASE_URL") or "").strip()
+if _db_url:
+    config.set_main_option("sqlalchemy.url", _db_url)
 
 target_metadata = Base.metadata
 
@@ -34,7 +44,12 @@ def alembic_include_object(object, name, type_, reflected, compare_to):
 
 
 async def run_migrations_online():
-    connectable = create_async_engine(config.get_main_option("sqlalchemy.url"), poolclass=pool.NullPool)
+    url = (config.get_main_option("sqlalchemy.url") or "").strip()
+    if not url:
+        raise RuntimeError(
+            "DATABASE_URL пустой: задайте в /var/www/nutriaidiary/app/.env или export DATABASE_URL перед alembic."
+        )
+    connectable = create_async_engine(url, poolclass=pool.NullPool)
     async with connectable.connect() as connection:
         await connection.run_sync(
             lambda sync_conn: context.configure(

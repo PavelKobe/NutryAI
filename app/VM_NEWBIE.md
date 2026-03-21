@@ -221,5 +221,14 @@ docker compose build && docker compose up -d
 | `scripts/vm_bootstrap_yandex.sh` | Первая настройка ВМ: пакеты, UFW, Nginx, Certbot, systemd units |
 | `scripts/vm_clone_from_github.sh` | Клон + symlink на `APP_ROOT` |
 | `scripts/vm_install_app.sh` | venv, alembic, npm build, enable сервисов |
+| `scripts/vm_deploy_pull.sh` | **`git pull` + сразу деплой** (по умолчанию как `vm_install_app`; для Docker: `DEPLOY_MODE=docker`) |
 
-После `git pull` на ВМ можно снова запускать `vm_install_app.sh` для обновления зависимостей и пересборки (ветку/тег выбирайте сами через `git` в каталоге клона).
+После пуша на GitHub на ВМ достаточно:
+
+```bash
+sudo bash /var/www/nutriaidiary/app/scripts/vm_deploy_pull.sh
+```
+
+(или под пользователем `nutriaidiary`: `bash /var/www/nutriaidiary/app/scripts/vm_deploy_pull.sh` — без `sudo`, если вы уже он.)
+
+Раньше: после ручного `git pull` можно было снова запускать только `vm_install_app.sh` — это по-прежнему отдельный шаг, если нужен только билд без pull.

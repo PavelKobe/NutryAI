@@ -24,9 +24,22 @@ let browserClient: ReturnType<
   typeof import('@metagptx/web-sdk').createClient
 > | null = null;
 
+/** SDK вшивает Bearer в axios только при createClient(); после логина токен в LS обновляется, а старый инстанс остаётся без заголовка → 401. */
+let browserClientTokenSnapshot: string | null = null;
+
+function currentStoredToken(): string | null {
+  try {
+    return localStorage.getItem('token');
+  } catch {
+    return null;
+  }
+}
+
 function getBrowserClient() {
-  if (!browserClient) {
+  const tokenNow = currentStoredToken();
+  if (!browserClient || browserClientTokenSnapshot !== tokenNow) {
     browserClient = getRealClient();
+    browserClientTokenSnapshot = tokenNow;
   }
   return browserClient;
 }

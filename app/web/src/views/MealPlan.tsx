@@ -143,7 +143,7 @@ export default function MealPlan() {
           { role: 'system', content: 'Ты — профессиональный нутрициолог. Отвечай ТОЛЬКО валидным JSON без markdown-обёрток.' },
           { role: 'user', content: prompt },
         ],
-        model: 'gpt-5-chat',
+        model: 'openai/gpt-4o',
         stream: true,
         onChunk: (chunk: { content?: string }) => {
           fullText += chunk.content || '';
@@ -316,18 +316,6 @@ export default function MealPlan() {
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
                           ) : (
                             <Bookmark className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => generateMealImage(selectedDay, i, meal.name)}
-                          disabled={generatingImage === imgKey}
-                          className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors text-slate-500 hover:text-purple-400 disabled:opacity-50"
-                          title="Сгенерировать изображение"
-                        >
-                          {generatingImage === imgKey ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <ImageIcon className="w-3.5 h-3.5" />
                           )}
                         </button>
                         <div className="flex items-center gap-1 text-xs text-slate-500">

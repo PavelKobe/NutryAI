@@ -117,7 +117,7 @@ export default function Dashboard() {
           { role: 'system', content: 'Ты — дружелюбный ИИ-нутрициолог. Отвечай кратко и по делу на русском языке.' },
           { role: 'user', content: prompt },
         ],
-        model: 'deepseek-v3.2',
+        model: 'openai/gpt-4o-mini',
         stream: true,
         onChunk: (chunk: { content?: string }) => {
           result += chunk.content || '';

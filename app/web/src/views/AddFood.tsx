@@ -145,7 +145,7 @@ export default function AddFood() {
             ],
           },
         ],
-        model: 'gemini-2.5-pro',
+        model: 'google/gemini-2.0-flash-001',
         stream: true,
         onChunk: (chunk: { content?: string }) => {
           fullText += chunk.content || '';

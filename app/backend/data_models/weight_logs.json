@@ -1,0 +1,32 @@
+{
+    "title": "weight_logs",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "User ID from auth"
+        },
+        "weight_kg": {
+            "type": "number",
+            "description": "Weight in kg"
+        },
+        "logged_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the weight was logged"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "user_id"
+    ]
+}

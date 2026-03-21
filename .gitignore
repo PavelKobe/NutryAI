@@ -1,0 +1,17 @@
+venv/
+*.log
+node_modules/
+build/
+__pycache__/
+*.py[cod]
+dist
+vite.config.ts.timestamp-*
+.env
+.env.*
+!.env.example
+**/.next/
+web/.next/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+*.tsbuildinfo

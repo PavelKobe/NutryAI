@@ -1,0 +1,91 @@
+{
+    "title": "user_profiles",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "User ID from auth"
+        },
+        "gender": {
+            "type": "string",
+            "description": "male or female"
+        },
+        "age": {
+            "type": "integer",
+            "description": "Age in years"
+        },
+        "height_cm": {
+            "type": "integer",
+            "description": "Height in cm"
+        },
+        "weight_kg": {
+            "type": "number",
+            "description": "Current weight in kg"
+        },
+        "target_weight_kg": {
+            "type": "number",
+            "description": "Target weight in kg"
+        },
+        "goal": {
+            "type": "string",
+            "description": "lose, gain, or maintain"
+        },
+        "activity_level": {
+            "type": "string",
+            "description": "sedentary, light, moderate, active, very_active"
+        },
+        "allergies": {
+            "type": "string",
+            "description": "Comma-separated allergies"
+        },
+        "cuisine_preferences": {
+            "type": "string",
+            "description": "Comma-separated cuisine preferences"
+        },
+        "budget_per_week": {
+            "type": "integer",
+            "description": "Weekly food budget in rubles"
+        },
+        "city": {
+            "type": "string",
+            "description": "City name"
+        },
+        "cooking_time_minutes": {
+            "type": "integer",
+            "description": "Max cooking time in minutes"
+        },
+        "target_calories": {
+            "type": "integer",
+            "description": "Daily calorie target"
+        },
+        "target_protein": {
+            "type": "integer",
+            "description": "Daily protein target in grams"
+        },
+        "target_fat": {
+            "type": "integer",
+            "description": "Daily fat target in grams"
+        },
+        "target_carbs": {
+            "type": "integer",
+            "description": "Daily carbs target in grams"
+        },
+        "onboarding_completed": {
+            "type": "boolean",
+            "description": "Whether onboarding is done"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "user_id"
+    ]
+}

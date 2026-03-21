@@ -1,0 +1,182 @@
+@startuml NutriAI_ER_Diagram
+!theme plain
+title NutriAI — ER-диаграмма базы данных v2.0\n(Yandex Managed PostgreSQL + ЮKassa)
+
+skinparam shadowing false
+
+entity "users" as users {
+    * id : uuid <<PK>>
+    --
+    * email : varchar(255) <<UNIQUE>>
+    * name : varchar(100)
+    avatar_url : text
+    * created_at : timestamptz
+    * updated_at : timestamptz
+}
+
+entity "user_profiles" as profiles {
+    * id : uuid <<PK>>
+    --
+    * user_id : uuid <<FK>> <<UNIQUE>>
+    * gender : enum('male','female','other')
+    * birth_date : date
+    * height_cm : smallint
+    * current_weight_kg : decimal(5,2)
+    * target_weight_kg : decimal(5,2)
+    * goal : enum('lose','gain','maintain')
+    * activity_level : enum('sedentary','light','moderate','active','very_active')
+    allergies : jsonb (string[])
+    dietary_preferences : jsonb (string[])
+    cuisine_preferences : jsonb (string[])
+    * budget_per_week : integer
+    * budget_currency : varchar(3) = 'RUB'
+    preferred_stores : jsonb (string[])
+    * city : varchar(100)
+    * locale : varchar(10) = 'ru-RU'
+    * cooking_time_minutes : smallint
+    * meals_per_day : smallint
+    * daily_calories_target : smallint
+    * daily_protein_target : smallint
+    * daily_fat_target : smallint
+    * daily_carbs_target : smallint
+    * updated_at : timestamptz
+}
+
+entity "meal_logs" as meal_logs {
+    * id : uuid <<PK>>
+    --
+    * user_id : uuid <<FK>>
+    * meal_type : enum('breakfast','lunch','dinner','snack')
+    * logged_at : timestamptz
+    photo_url : text
+    * total_calories : smallint
+    * total_protein : smallint
+    * total_fat : smallint
+    * total_carbs : smallint
+    notes : text
+    * items : jsonb
+}
+
+entity "meal_plans" as meal_plans {
+    * id : uuid <<PK>>
+    --
+    * user_id : uuid <<FK>>
+    * week_start_date : date
+    * plan_data : jsonb
+    * generated_at : timestamptz
+    * status : enum('active','archived')
+}
+
+entity "recipes" as recipes {
+    * id : uuid <<PK>>
+    --
+    user_id : uuid <<FK>>
+    * name : varchar(255)
+    * description : text
+    image_url : text
+    * ingredients : jsonb
+    * instructions : jsonb (string[])
+    * prep_time_minutes : smallint
+    * cook_time_minutes : smallint
+    * servings : smallint
+    * calories_per_serving : smallint
+    * protein_per_serving : smallint
+    * fat_per_serving : smallint
+    * carbs_per_serving : smallint
+    tags : jsonb (string[])
+    dietary_flags : jsonb (string[])
+    cuisine : varchar(50)
+    * created_at : timestamptz
+}
+
+entity "chat_messages" as chat_msgs {
+    * id : uuid <<PK>>
+    --
+    * user_id : uuid <<FK>>
+    * role : enum('user','assistant')
+    * content : text
+    context : jsonb
+    * created_at : timestamptz
+}
+
+entity "weight_logs" as weight_logs {
+    * id : uuid <<PK>>
+    --
+    * user_id : uuid <<FK>>
+    * weight_kg : decimal(5,2)
+    * logged_at : timestamptz
+    notes : text
+}
+
+entity "shopping_lists" as shopping_lists {
+    * id : uuid <<PK>>
+    --
+    * user_id : uuid <<FK>>
+    * meal_plan_id : uuid <<FK>>
+    * items : jsonb
+    estimated_cost_rub : integer
+    * created_at : timestamptz
+}
+
+entity "food_database" as food_db {
+    * id : uuid <<PK>>
+    --
+    * name : varchar(255)
+    brand : varchar(100)
+    barcode : varchar(20) <<INDEX>>
+    * calories_per_100g : smallint
+    * protein_per_100g : decimal(5,2)
+    * fat_per_100g : decimal(5,2)
+    * carbs_per_100g : decimal(5,2)
+    * category : varchar(50)
+    * region : varchar(5) = 'RU'
+    * verified : boolean = false
+    * created_at : timestamptz
+}
+
+entity "subscriptions" as subscriptions {
+    * id : uuid <<PK>>
+    --
+    * user_id : uuid <<FK>> <<UNIQUE>>
+    * tier : enum('free','premium','premium_plus')
+    * status : enum('active','cancelled','expired','past_due')
+    * current_period_start : timestamptz
+    * current_period_end : timestamptz
+    yookassa_payment_method_id : varchar(50)
+    * cancel_at_period_end : boolean = false
+    * created_at : timestamptz
+    * updated_at : timestamptz
+}
+
+entity "payments" as payments {
+    * id : uuid <<PK>>
+    --
+    * user_id : uuid <<FK>>
+    * subscription_id : uuid <<FK>>
+    * yookassa_payment_id : varchar(50) <<UNIQUE>>
+    * amount : decimal(10,2)
+    * currency : varchar(3) = 'RUB'
+    * status : enum('pending','succeeded','cancelled','refunded')
+    * description : varchar(255)
+    payment_method_type : varchar(20)
+    * created_at : timestamptz
+    * updated_at : timestamptz
+}
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+users ||--o| profiles : "profiles.user_id → users.id"
+users ||--o{ meal_logs : "meal_logs.user_id → users.id"
+users ||--o{ meal_plans : "meal_plans.user_id → users.id"
+users ||--o{ recipes : "recipes.user_id → users.id"
+users ||--o{ chat_msgs : "chat_messages.user_id → users.id"
+users ||--o{ weight_logs : "weight_logs.user_id → users.id"
+users ||--o{ shopping_lists : "shopping_lists.user_id → users.id"
+users ||--o| subscriptions : "subscriptions.user_id → users.id"
+users ||--o{ payments : "payments.user_id → users.id"
+meal_plans ||--o| shopping_lists : "shopping_lists.meal_plan_id → meal_plans.id"
+subscriptions ||--o{ payments : "payments.subscription_id → subscriptions.id"
+
+@enduml

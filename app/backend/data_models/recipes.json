@@ -1,0 +1,66 @@
+{
+    "title": "recipes",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "title": {
+            "type": "string",
+            "description": "Recipe title"
+        },
+        "description": {
+            "type": "string",
+            "description": "Recipe description"
+        },
+        "cuisine": {
+            "type": "string",
+            "description": "Cuisine type"
+        },
+        "calories": {
+            "type": "integer",
+            "description": "Calories per serving"
+        },
+        "protein": {
+            "type": "integer",
+            "description": "Protein per serving"
+        },
+        "fat": {
+            "type": "integer",
+            "description": "Fat per serving"
+        },
+        "carbs": {
+            "type": "integer",
+            "description": "Carbs per serving"
+        },
+        "cooking_time": {
+            "type": "integer",
+            "description": "Cooking time in minutes"
+        },
+        "servings": {
+            "type": "integer",
+            "description": "Number of servings"
+        },
+        "ingredients": {
+            "type": "string",
+            "description": "JSON array of ingredients"
+        },
+        "instructions": {
+            "type": "string",
+            "description": "JSON array of instructions"
+        },
+        "image_url": {
+            "type": "string",
+            "description": "URL of recipe image"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        }
+    },
+    "required": [
+        "id"
+    ]
+}

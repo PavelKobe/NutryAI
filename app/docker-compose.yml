@@ -1,0 +1,33 @@
+# Usage from NutryAI/app:
+#   copy .env.example -> .env and fill secrets
+#   docker compose build
+#   docker compose up -d
+#
+# For production on Yandex VM: point DNS api.* / www to host, terminate TLS (nginx / Caddy / ALB).
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://api.nutriaidiary.com}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://nutriaidiary.com}
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://api.nutriaidiary.com}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://nutriaidiary.com}
+    depends_on:
+      - api
+    restart: unless-stopped

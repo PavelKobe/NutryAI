@@ -1,0 +1,35 @@
+{
+    "title": "meal_plans",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "User ID from auth"
+        },
+        "plan_data": {
+            "type": "string",
+            "description": "JSON string of the weekly meal plan"
+        },
+        "week_start": {
+            "type": "string",
+            "description": "Start date of the week"
+        },
+        "status": {
+            "type": "string",
+            "description": "active or archived"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "user_id"
+    ]
+}

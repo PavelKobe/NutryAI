@@ -1,0 +1,314 @@
+@startuml NutriAI_Sequence_Diagram
+!theme plain
+title NutriAI — Диаграмма последовательности (Основные сценарии MVP)
+
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+actor "Пользователь" as User
+participant "React SPA\n(Frontend)" as FE
+participant "Atoms Cloud\nAuth" as Auth
+participant "Edge Functions\n(API)" as API
+participant "Atoms Cloud\nDatabase" as DB
+participant "Atoms Cloud\nStorage" as Storage
+participant "gemini-2.5-pro" as Gemini
+participant "gpt-5-chat" as GPT
+participant "claude-4-5-sonnet" as Claude
+participant "gemini-2.5-flash-image" as GeminiImg
+
+' ============================================================
+' СЦЕНАРИЙ 1: Регистрация и Онбординг
+' ============================================================
+
+== Сценарий 1: Регистрация и Онбординг ==
+
+User -> FE: Открывает приложение
+FE -> Auth: signUp(email, password, name)
+    note right
+        Input: {
+            "email": "anna@mail.ru",
+            "password": "***",
+            "name": "Анна"
+        }
+    end note
+Auth --> FE: {user, access_token}
+    note right
+        Output: {
+            "user": {"id": "uuid", "email": "anna@mail.ru"},
+            "access_token": "jwt_token"
+        }
+    end note
+
+FE -> FE: Показать анкету онбординга\n(5 шагов)
+User -> FE: Заполняет анкету
+FE -> API: POST /onboarding/profile
+    note right
+        Input: {
+            "gender": "female",
+            "birth_date": "1992-05-15",
+            "height_cm": 165,
+            "current_weight_kg": 72,
+            "target_weight_kg": 62,
+            "goal": "lose",
+            "activity_level": "moderate",
+            "allergies": ["глютен"],
+            "dietary_preferences": ["без глютена"],
+            "cuisine_preferences": ["русская", "кавказская"],
+            "budget_per_week": 5000,
+            "preferred_stores": ["Пятёрочка", "ВкусВилл"],
+            "city": "Москва",
+            "cooking_time_minutes": 30,
+            "meals_per_day": 4
+        }
+    end note
+API -> API: computeTargets()\n(Mifflin-St Jeor + дефицит)
+API -> DB: INSERT user_profiles
+DB --> API: profile saved
+API --> FE: {profile, targets}
+    note right
+        Output: {
+            "daily_calories_target": 1600,
+            "daily_protein_target": 120,
+            "daily_fat_target": 53,
+            "daily_carbs_target": 160
+        }
+    end note
+FE --> User: Дашборд с целями
+
+' ============================================================
+' СЦЕНАРИЙ 2: Распознавание еды по фото
+' ============================================================
+
+== Сценарий 2: Распознавание еды по фото ==
+
+User -> FE: Нажимает "📸 Добавить еду"
+FE -> FE: Открывает камеру\n(MediaDevices API)
+User -> FE: Делает фото тарелки
+FE -> Storage: Upload photo (base64 → blob)
+Storage --> FE: {photo_url}
+FE -> API: POST /food/recognize
+    note right
+        Input: {
+            "image_base64": "data:image/jpeg;base64,...",
+            "photo_url": "https://storage.../food-photos/abc.jpg"
+        }
+    end note
+API -> Gemini: Analyze food image
+    note right
+        Prompt: "Распознай продукты на фото.
+        Для каждого определи: название,
+        размер порции (г), КБЖУ.
+        Ответ в JSON формате.
+        Учитывай российские блюда."
+    end note
+Gemini --> API: {recognized_items[]}
+API -> DB: SELECT food_database\nWHERE name SIMILAR
+    note right
+        Уточнение КБЖУ по локальной базе
+    end note
+DB --> API: {verified_nutrition_data}
+API --> FE: FoodRecognitionResult
+    note right
+        Output: {
+            "items": [
+                {"name": "Борщ", "portion_g": 300,
+                 "calories": 180, "protein": 8,
+                 "fat": 7, "carbs": 22, "confidence": 0.92},
+                {"name": "Сметана 15%", "portion_g": 30,
+                 "calories": 48, "protein": 1,
+                 "fat": 4.5, "carbs": 1, "confidence": 0.88}
+            ],
+            "total_calories": 228,
+            "confidence": 0.90
+        }
+    end note
+FE --> User: Показывает распознанные\nпродукты с КБЖУ
+User -> FE: Корректирует порции\n(опционально)
+User -> FE: Нажимает "✅ Сохранить"
+FE -> API: POST /meal-logs
+    note right
+        Input: {
+            "meal_type": "lunch",
+            "photo_url": "https://storage.../abc.jpg",
+            "items": [...],
+            "notes": null
+        }
+    end note
+API -> DB: INSERT meal_logs
+DB --> API: {meal_log}
+API --> FE: {meal_log, updated_daily_summary}
+FE --> User: Обновлённый дашборд
+
+' ============================================================
+' СЦЕНАРИЙ 3: Генерация плана питания
+' ============================================================
+
+== Сценарий 3: Генерация плана питания ==
+
+User -> FE: Переходит в "📋 План питания"
+FE -> API: POST /meal-plans/generate
+    note right
+        Input: {
+            "user_id": "uuid"
+        }
+    end note
+API -> DB: SELECT user_profiles\nWHERE user_id = ?
+DB --> API: {profile with targets}
+API -> GPT: Generate meal plan
+    note right
+        Prompt: "Сгенерируй план питания на 7 дней.
+        Параметры пользователя:
+        - Цель: похудение, 1600 ккал/день
+        - БЖУ: 120/53/160
+        - Аллергии: глютен
+        - Кухни: русская, кавказская
+        - Бюджет: 5000 ₽/неделя
+        - Магазины: Пятёрочка, ВкусВилл
+        - Время готовки: до 30 мин
+        - 4 приёма пищи/день
+        Ответ в JSON."
+    end note
+GPT --> API: {plan_data: {days: [...]}}
+API -> DB: INSERT meal_plans
+DB --> API: {meal_plan}
+
+loop Для каждого рецепта в плане
+    API -> DB: INSERT recipes (если новый)
+end
+
+API --> FE: {meal_plan}
+    note right
+        Output: {
+            "id": "uuid",
+            "week_start_date": "2026-03-23",
+            "plan_data": {
+                "days": [{
+                    "date": "2026-03-23",
+                    "meals": [{
+                        "type": "breakfast",
+                        "name": "Овсянка с ягодами (без глютена)",
+                        "calories": 320,
+                        "protein": 12, "fat": 8, "carbs": 52
+                    }, ...]
+                }, ...]
+            }
+        }
+    end note
+FE --> User: Отображает недельный план
+
+' ============================================================
+' СЦЕНАРИЙ 4: ИИ-чат-бот нутрициолог
+' ============================================================
+
+== Сценарий 4: ИИ-чат-бот нутрициолог ==
+
+User -> FE: Переходит в "🤖 ИИ-нутрициолог"
+FE -> API: GET /chat/history?limit=20
+API -> DB: SELECT chat_messages\nORDER BY created_at DESC\nLIMIT 20
+DB --> API: {messages[]}
+API --> FE: {messages[]}
+FE --> User: Показывает историю чата
+
+User -> FE: Пишет "Чем заменить\nбелый рис в плове?"
+FE -> API: POST /chat/send
+    note right
+        Input: {
+            "content": "Чем заменить белый рис в плове?"
+        }
+    end note
+API -> DB: INSERT chat_messages (role: user)
+API -> DB: SELECT user_profiles, meal_logs\n(последние 7 дней для контекста)
+DB --> API: {user_context}
+API -> Claude: Chat completion
+    note right
+        System: "Ты — ИИ-нутрициолог NutriAI.
+        Отвечай на русском языке.
+        Знаешь российские продукты и магазины.
+        Контекст пользователя:
+        - Цель: похудение
+        - Аллергия: глютен
+        - Город: Москва
+        - Бюджет: 5000 ₽/нед"
+        
+        User: "Чем заменить белый рис в плове?"
+    end note
+Claude --> API: {assistant_response}
+API -> DB: INSERT chat_messages (role: assistant)
+DB --> API: saved
+API --> FE: {message}
+    note right
+        Output: {
+            "role": "assistant",
+            "content": "Отличный вопрос! Вот замены...\n
+            1. **Булгур** — 19г У на 100г...\n
+            2. **Гречка** — классика для РФ...\n
+            3. **Цветная капуста** — 5г У..."
+        }
+    end note
+FE --> User: Показывает ответ ИИ
+
+' ============================================================
+' СЦЕНАРИЙ 5: Генерация рецепта
+' ============================================================
+
+== Сценарий 5: Генерация рецепта ==
+
+User -> FE: Нажимает "Открыть рецепт"\nв плане питания
+FE -> API: GET /recipes/{recipe_id}
+API -> DB: SELECT recipes WHERE id = ?
+DB --> API: {recipe}
+
+alt Рецепт без изображения
+    FE -> API: POST /recipes/{id}/generate-image
+    API -> GeminiImg: Generate food image
+        note right
+            Prompt: "Аппетитное фото блюда:
+            Овсянка с ягодами.
+            Стиль: food photography,
+            тёплое освещение, вид сверху"
+        end note
+    GeminiImg --> API: {image_base64}
+    API -> Storage: Upload image
+    Storage --> API: {image_url}
+    API -> DB: UPDATE recipes SET image_url
+    API --> FE: {image_url}
+end
+
+FE --> User: Рецепт с фото,\nингредиентами, шагами, КБЖУ
+
+' ============================================================
+' СЦЕНАРИЙ 6: Дашборд и аналитика
+' ============================================================
+
+== Сценарий 6: Загрузка дашборда ==
+
+User -> FE: Открывает главную (Дашборд)
+FE -> API: GET /analytics/daily?date=today
+API -> DB: SELECT meal_logs WHERE date = today
+API -> DB: SELECT user_profiles (targets)
+DB --> API: {logs, targets}
+API -> API: Агрегация КБЖУ
+API --> FE: DailySummary
+    note right
+        Output: {
+            "date": "2026-03-20",
+            "total_calories": 1240,
+            "total_protein": 82,
+            "total_fat": 45,
+            "total_carbs": 156,
+            "target_calories": 1600,
+            "target_protein": 120,
+            "target_fat": 53,
+            "target_carbs": 160,
+            "meals_logged": 2
+        }
+    end note
+
+FE -> API: GET /meal-plans/active
+API -> DB: SELECT meal_plans\nWHERE status = 'active'
+DB --> API: {active_plan}
+API --> FE: {next_meal from plan}
+
+FE --> User: Дашборд с прогресс-барами,\nследующим приёмом пищи,\nинсайтом от ИИ
+
+@enduml

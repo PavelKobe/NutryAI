@@ -1,0 +1,60 @@
+{
+    "title": "meal_logs",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "User ID from auth"
+        },
+        "meal_type": {
+            "type": "string",
+            "description": "breakfast, lunch, dinner, snack"
+        },
+        "food_name": {
+            "type": "string",
+            "description": "Name of the food"
+        },
+        "calories": {
+            "type": "number",
+            "description": "Calories"
+        },
+        "protein": {
+            "type": "number",
+            "description": "Protein in grams"
+        },
+        "fat": {
+            "type": "number",
+            "description": "Fat in grams"
+        },
+        "carbs": {
+            "type": "number",
+            "description": "Carbs in grams"
+        },
+        "portion_grams": {
+            "type": "number",
+            "description": "Portion size in grams"
+        },
+        "photo_url": {
+            "type": "string",
+            "description": "URL of food photo"
+        },
+        "logged_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the meal was logged"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "user_id"
+    ]
+}

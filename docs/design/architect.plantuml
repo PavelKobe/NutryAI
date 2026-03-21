@@ -1,0 +1,115 @@
+@startuml NutriAI_System_Architecture
+!theme plain
+title NutriAI - Архитектура системы v2.1\nДва варианта: Demo (Atoms Cloud) и Production (Yandex Cloud)
+
+skinparam packageStyle rectangle
+skinparam componentStyle uml2
+skinparam shadowing false
+
+' ============================================================
+' DEMO VERSION (Atoms Cloud)
+' ============================================================
+
+package "Demo-версия (Atoms Cloud - полный стек)" as DemoBlock {
+    package "Клиент (Browser)" as DemoClient {
+        [Vite + React 18 SPA] as DemoSPA
+        [Shadcn-ui + Tailwind] as DemoUI
+        [React Router v6] as DemoRouter
+        [Zustand + TanStack Query] as DemoState
+
+        DemoSPA --> DemoUI
+        DemoSPA --> DemoRouter
+        DemoSPA --> DemoState
+    }
+
+    cloud "Atoms Cloud (полный стек)" as DemoAtomsCloud {
+        [Auth Service\n(Email + Google)] as DemoAuth
+        [Database\n(PostgreSQL + RLS)] as DemoDB
+        [Storage\n(фото еды, рецептов)] as DemoStorage
+        [Edge Functions\n(ИИ-модели)] as DemoEdge
+    }
+
+    DemoClient -down-> DemoAuth : "JWT"
+    DemoClient -down-> DemoDB : "CRUD + RLS"
+    DemoClient -down-> DemoStorage : "Upload/Download"
+    DemoClient -down-> DemoEdge : "ИИ-запросы"
+}
+
+' ============================================================
+' PRODUCTION VERSION (Yandex Cloud + Atoms Cloud)
+' ============================================================
+
+package "Production-версия (Yandex Cloud + Atoms Cloud)" as ProdBlock {
+    package "Клиент (Browser / PWA)" as ProdClient {
+        [Server Components\n(SSR / SSG / ISR)] as SSR
+        [Client Components\n(CSR: камера, чат)] as CSR
+        [Shadcn-ui + Tailwind CSS] as ProdUI
+        [Zustand + TanStack Query] as ProdState
+        [Recharts] as Charts
+
+        SSR --> ProdUI
+        CSR --> ProdUI
+        CSR --> ProdState
+        CSR --> Charts
+    }
+
+    cloud "Yandex Cloud (ru-central1, Москва)" as YandexCloud {
+        [Next.js 14+ App\n(SSR + API Routes)] as NextApp
+        database "Yandex Managed\nPostgreSQL" as ProdDB
+        storage "Yandex Object\nStorage (S3)" as ProdStorage
+        [Yandex CDN] as CDN
+    }
+
+    cloud "Atoms Cloud" as ProdAtomsCloud {
+        [Auth Service\n(Email + Google\n+ VK ID + Яндекс ID)] as ProdAuth
+        [Edge Functions\n(ИИ-модели)] as ProdEdge
+    }
+
+    cloud "ЮKassa" as YooKassa {
+        [Payments API v3] as YKPayments
+        [Webhooks] as YKWebhooks
+    }
+
+    SSR -down-> NextApp : "SSR"
+    CSR -down-> NextApp : "REST API + JWT"
+    NextApp -down-> ProdDB : "Prisma ORM"
+    NextApp -down-> ProdStorage : "Presigned URLs"
+    NextApp -right-> ProdEdge : "ИИ-запросы"
+    NextApp -left-> ProdAuth : "JWT"
+    NextApp -down-> YKPayments : "Создание платежей"
+    YKWebhooks -up-> NextApp : "Статус оплаты"
+    CDN -down-> ProdStorage : "Раздача файлов"
+    ProdClient -down-> CDN : "Статика"
+}
+
+' ============================================================
+' SHARED: AI Models
+' ============================================================
+
+cloud "ИИ-модели (общие)" as AIModels {
+    [gemini-2.5-pro\n(распознавание еды)] as Gemini
+    [gpt-5-chat\n(планы, рецепты)] as GPT
+    [claude-4-5-sonnet\n(чат-бот)] as Claude
+    [gemini-2.5-flash-image\n(изображения)] as GeminiImg
+}
+
+DemoEdge -down-> AIModels
+ProdEdge -down-> AIModels
+
+' ============================================================
+' MIGRATION PATH
+' ============================================================
+
+note bottom of DemoBlock
+  **Demo**: Быстрый прототип (2-3 недели)
+  Для инвесторов, тестирования, валидации
+end note
+
+note bottom of ProdBlock
+  **Production**: Полноценный продукт (10-12 недель)
+  152-ФЗ, SSR/SEO, платежи ЮKassa
+end note
+
+DemoBlock ..right..> ProdBlock : "Миграция:\nEdge Functions без изменений\nUI-компоненты переиспользуются\nPrisma-схема совместима"
+
+@enduml

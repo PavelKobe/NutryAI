@@ -1,0 +1,172 @@
+@startuml NutriAI_UI_Navigation
+!theme plain
+title NutriAI — Навигация UI (Конечный автомат)
+
+skinparam shadowing false
+skinparam state {
+    BackgroundColor #F8F9FA
+    BorderColor #343A40
+    ArrowColor #495057
+}
+
+' ============================================================
+' УРОВЕНЬ 0: Точка входа
+' ============================================================
+
+[*] --> SplashScreen
+
+state "Splash Screen" as SplashScreen
+state "Авторизация" as Auth {
+    state "Вход" as SignIn
+    state "Регистрация" as SignUp
+    state "OAuth\n(VK/Яндекс/Google)" as OAuth
+    
+    [*] --> SignIn
+    SignIn --> SignUp : "Нет аккаунта?"
+    SignUp --> SignIn : "Уже есть аккаунт?"
+    SignIn --> OAuth : "Войти через..."
+    SignUp --> OAuth : "Войти через..."
+}
+
+state "Онбординг\n(5 шагов)" as Onboarding {
+    state "1. Пол и возраст" as Ob1
+    state "2. Рост и вес" as Ob2
+    state "3. Цели и активность" as Ob3
+    state "4. Аллергии и\nпредпочтения" as Ob4
+    state "5. Бюджет, магазины,\nкухни, город" as Ob5
+    
+    [*] --> Ob1
+    Ob1 --> Ob2 : далее
+    Ob2 --> Ob3 : далее
+    Ob3 --> Ob4 : далее
+    Ob4 --> Ob5 : далее
+    Ob2 --> Ob1 : назад
+    Ob3 --> Ob2 : назад
+    Ob4 --> Ob3 : назад
+    Ob5 --> Ob4 : назад
+}
+
+SplashScreen --> Auth : нет сессии
+SplashScreen --> Dashboard : есть сессия +\nонбординг пройден
+SplashScreen --> Onboarding : есть сессия +\nонбординг НЕ пройден
+Auth --> Onboarding : первый вход
+Onboarding --> Dashboard : анкета заполнена
+
+' ============================================================
+' УРОВЕНЬ 1: Основная навигация (Bottom Tab Bar)
+' ============================================================
+
+state "═══ ОСНОВНАЯ НАВИГАЦИЯ (Tab Bar) ═══" as MainNav {
+
+    state "🏠 Дашборд" as Dashboard {
+        state "Прогресс КБЖУ" as DashProgress
+        state "Следующий приём\nпищи из плана" as DashNextMeal
+        state "Инсайт от ИИ-коуча" as DashInsight
+        state "Быстрое добавление\nеды" as DashQuickAdd
+        
+        [*] --> DashProgress
+    }
+
+    state "📋 План питания" as MealPlan {
+        state "Недельный план" as PlanWeek
+        state "Детали дня" as PlanDay
+        state "Рецепт блюда" as PlanRecipe
+        
+        [*] --> PlanWeek
+        PlanWeek --> PlanDay : выбрать день
+        PlanDay --> PlanRecipe : открыть рецепт
+        PlanDay --> PlanWeek : назад
+        PlanRecipe --> PlanDay : назад
+    }
+
+    state "📸 Добавить еду" as AddFood {
+        state "Выбор способа" as AddChoice
+        state "Камера / Фото" as AddCamera
+        state "Результат\nраспознавания" as AddResult
+        state "Поиск по базе" as AddSearch
+        state "Ручной ввод" as AddManual
+        
+        [*] --> AddChoice
+        AddChoice --> AddCamera : фото
+        AddChoice --> AddSearch : поиск
+        AddChoice --> AddManual : вручную
+        AddCamera --> AddResult : фото сделано
+        AddResult --> AddChoice : отмена
+    }
+
+    state "🤖 ИИ-нутрициолог" as Chat {
+        state "Список диалогов" as ChatList
+        state "Диалог с ИИ" as ChatDialog
+        state "Быстрые вопросы" as ChatQuick
+        
+        [*] --> ChatDialog
+        ChatDialog --> ChatQuick : шаблоны
+        ChatQuick --> ChatDialog : выбрать вопрос
+    }
+
+    state "📊 Аналитика" as Analytics {
+        state "Дневная статистика" as AnalDay
+        state "Недельная статистика" as AnalWeek
+        state "Месячная статистика" as AnalMonth
+        state "Динамика веса" as AnalWeight
+        
+        [*] --> AnalDay
+        AnalDay --> AnalWeek : вкладка
+        AnalWeek --> AnalMonth : вкладка
+        AnalDay --> AnalWeight : вкладка
+    }
+}
+
+' ============================================================
+' Переходы между табами (Tab Bar)
+' ============================================================
+
+Dashboard -right-> MealPlan : таб "План"
+Dashboard --> AddFood : таб "Добавить" /\nкнопка "📸"
+Dashboard --> Chat : таб "Чат"
+Dashboard --> Analytics : таб "Аналитика"
+
+MealPlan --> Dashboard : таб "Главная"
+MealPlan --> AddFood : таб "Добавить"
+MealPlan --> Chat : таб "Чат"
+MealPlan --> Analytics : таб "Аналитика"
+
+AddFood --> Dashboard : сохранено /\nотмена
+Chat --> Dashboard : таб "Главная"
+Analytics --> Dashboard : таб "Главная"
+
+' ============================================================
+' УРОВЕНЬ 2: Профиль (из Header)
+' ============================================================
+
+state "👤 Профиль" as Profile {
+    state "Личные данные" as ProfData
+    state "Диетические\nограничения" as ProfDiet
+    state "Настройки" as ProfSettings
+    state "Подписка" as ProfSub
+    
+    [*] --> ProfData
+    ProfData --> ProfDiet : раздел
+    ProfData --> ProfSettings : раздел
+    ProfData --> ProfSub : раздел
+}
+
+Dashboard --> Profile : иконка профиля
+Profile --> Dashboard : назад
+
+' ============================================================
+' Контекстные переходы
+' ============================================================
+
+DashNextMeal --> PlanRecipe : "Открыть рецепт"
+DashQuickAdd --> AddFood : "Добавить еду"
+AddResult --> Dashboard : "✅ Сохранить\nв дневник"
+PlanWeek -[dashed]-> AddFood : "Отметить\nкак съеденное"
+
+' ============================================================
+' Выход
+' ============================================================
+
+Profile --> Auth : выход из аккаунта
+
+@enduml

@@ -1,0 +1,468 @@
+@startuml NutriAI_Class_Diagram
+!theme plain
+title NutriAI — Диаграмма классов (Структуры данных и интерфейсы)
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+
+' ============================================================
+' ENUMS
+' ============================================================
+
+enum Gender {
+    MALE
+    FEMALE
+    OTHER
+}
+
+enum Goal {
+    LOSE
+    GAIN
+    MAINTAIN
+}
+
+enum ActivityLevel {
+    SEDENTARY
+    LIGHT
+    MODERATE
+    ACTIVE
+    VERY_ACTIVE
+}
+
+enum MealType {
+    BREAKFAST
+    LUNCH
+    DINNER
+    SNACK
+}
+
+enum PlanStatus {
+    ACTIVE
+    ARCHIVED
+}
+
+enum ChatRole {
+    USER
+    ASSISTANT
+}
+
+enum SubscriptionTier {
+    FREE
+    PREMIUM
+    PREMIUM_PLUS
+}
+
+' ============================================================
+' DOMAIN MODELS (DB Entities)
+' ============================================================
+
+class User {
+    +id: UUID <<PK>>
+    +email: string
+    +name: string
+    +avatar_url: string | null
+    +subscription_tier: SubscriptionTier
+    +created_at: timestamp
+    +updated_at: timestamp
+}
+
+class UserProfile {
+    +id: UUID <<PK>>
+    +user_id: UUID <<FK>>
+    +gender: Gender
+    +birth_date: date
+    +height_cm: number
+    +current_weight_kg: number
+    +target_weight_kg: number
+    +goal: Goal
+    +activity_level: ActivityLevel
+    +allergies: string[]
+    +dietary_preferences: string[]
+    +cuisine_preferences: string[]
+    +budget_per_week: number
+    +budget_currency: string = "RUB"
+    +preferred_stores: string[]
+    +city: string
+    +locale: string = "ru-RU"
+    +cooking_time_minutes: number
+    +meals_per_day: number
+    +daily_calories_target: number
+    +daily_protein_target: number
+    +daily_fat_target: number
+    +daily_carbs_target: number
+    +updated_at: timestamp
+    --
+    +compute_daily_targets(): void
+}
+
+class MealLog {
+    +id: UUID <<PK>>
+    +user_id: UUID <<FK>>
+    +meal_type: MealType
+    +logged_at: timestamp
+    +photo_url: string | null
+    +total_calories: number
+    +total_protein: number
+    +total_fat: number
+    +total_carbs: number
+    +notes: string | null
+    +items: MealLogItem[]
+}
+
+class MealLogItem {
+    +name: string
+    +portion_g: number
+    +calories: number
+    +protein: number
+    +fat: number
+    +carbs: number
+}
+
+class MealPlan {
+    +id: UUID <<PK>>
+    +user_id: UUID <<FK>>
+    +week_start_date: date
+    +plan_data: MealPlanData
+    +generated_at: timestamp
+    +status: PlanStatus
+}
+
+class MealPlanData {
+    +days: MealPlanDay[]
+}
+
+class MealPlanDay {
+    +date: date
+    +meals: MealPlanMeal[]
+}
+
+class MealPlanMeal {
+    +type: MealType
+    +recipe_id: UUID | null
+    +name: string
+    +calories: number
+    +protein: number
+    +fat: number
+    +carbs: number
+}
+
+class Recipe {
+    +id: UUID <<PK>>
+    +user_id: UUID | null <<FK>>
+    +name: string
+    +description: string
+    +image_url: string | null
+    +ingredients: RecipeIngredient[]
+    +instructions: string[]
+    +prep_time_minutes: number
+    +cook_time_minutes: number
+    +servings: number
+    +calories_per_serving: number
+    +protein_per_serving: number
+    +fat_per_serving: number
+    +carbs_per_serving: number
+    +tags: string[]
+    +dietary_flags: string[]
+    +cuisine: string
+    +created_at: timestamp
+}
+
+class RecipeIngredient {
+    +name: string
+    +amount: number
+    +unit: string
+    +estimated_price_rub: number | null
+}
+
+class ChatMessage {
+    +id: UUID <<PK>>
+    +user_id: UUID <<FK>>
+    +role: ChatRole
+    +content: string
+    +context: object | null
+    +created_at: timestamp
+}
+
+class WeightLog {
+    +id: UUID <<PK>>
+    +user_id: UUID <<FK>>
+    +weight_kg: number
+    +logged_at: timestamp
+    +notes: string | null
+}
+
+class ShoppingList {
+    +id: UUID <<PK>>
+    +user_id: UUID <<FK>>
+    +meal_plan_id: UUID <<FK>>
+    +items: ShoppingItem[]
+    +estimated_cost_rub: number | null
+    +created_at: timestamp
+}
+
+class ShoppingItem {
+    +name: string
+    +amount: number
+    +unit: string
+    +category: string
+    +checked: boolean
+}
+
+class FoodItem {
+    +id: UUID <<PK>>
+    +name: string
+    +brand: string | null
+    +barcode: string | null
+    +calories_per_100g: number
+    +protein_per_100g: number
+    +fat_per_100g: number
+    +carbs_per_100g: number
+    +category: string
+    +region: string = "RU"
+    +verified: boolean
+    +created_at: timestamp
+}
+
+' ============================================================
+' SERVICE INTERFACES (Edge Functions)
+' ============================================================
+
+interface IAuthService {
+    +signUp(email: string, password: string, name: string): {user: User, token: string}
+    +signIn(email: string, password: string): {user: User, token: string}
+    +signInWithOAuth(provider: "google"|"vk"|"yandex"): {redirect_url: string}
+    +signOut(): void
+    +getSession(): {user: User} | null
+}
+
+interface IOnboardingService {
+    +saveProfile(user_id: UUID, data: OnboardingInput): UserProfile
+    +computeTargets(profile: UserProfile): NutritionTargets
+}
+
+interface IFoodRecognitionService {
+    +recognizeFromPhoto(image_base64: string, user_id: UUID): FoodRecognitionResult
+    +searchFoodDatabase(query: string, region: string): FoodItem[]
+    +scanBarcode(barcode: string): FoodItem | null
+}
+
+interface IMealPlanService {
+    +generateWeeklyPlan(user_id: UUID): MealPlan
+    +regenerateMeal(plan_id: UUID, day_index: number, meal_type: MealType): MealPlanMeal
+    +getActivePlan(user_id: UUID): MealPlan | null
+    +archivePlan(plan_id: UUID): void
+}
+
+interface IRecipeService {
+    +generateRecipe(user_id: UUID, params: RecipeGenerateParams): Recipe
+    +getRecipe(recipe_id: UUID): Recipe
+    +listRecipes(user_id: UUID, filters: RecipeFilters): Recipe[]
+    +generateRecipeImage(recipe_id: UUID): string
+}
+
+interface IChatService {
+    +sendMessage(user_id: UUID, content: string): ChatMessage
+    +getHistory(user_id: UUID, limit: number, offset: number): ChatMessage[]
+    +clearHistory(user_id: UUID): void
+}
+
+interface IMealLogService {
+    +createLog(user_id: UUID, data: MealLogInput): MealLog
+    +updateLog(log_id: UUID, data: Partial<MealLogInput>): MealLog
+    +deleteLog(log_id: UUID): void
+    +getLogsByDate(user_id: UUID, date: date): MealLog[]
+    +getLogsByRange(user_id: UUID, from: date, to: date): MealLog[]
+}
+
+interface IWeightLogService {
+    +logWeight(user_id: UUID, weight_kg: number, notes: string | null): WeightLog
+    +getWeightHistory(user_id: UUID, from: date, to: date): WeightLog[]
+    +deleteLog(log_id: UUID): void
+}
+
+interface IShoppingListService {
+    +generateFromPlan(meal_plan_id: UUID): ShoppingList
+    +updateItem(list_id: UUID, item_index: number, checked: boolean): ShoppingList
+    +getList(list_id: UUID): ShoppingList
+}
+
+interface IAnalyticsService {
+    +getDailySummary(user_id: UUID, date: date): DailySummary
+    +getWeeklySummary(user_id: UUID, week_start: date): WeeklySummary
+    +getMonthlySummary(user_id: UUID, month: string): MonthlySummary
+    +getTrends(user_id: UUID, period_days: number): TrendData
+}
+
+' ============================================================
+' DTO / VALUE OBJECTS
+' ============================================================
+
+class OnboardingInput {
+    +gender: Gender
+    +birth_date: date
+    +height_cm: number
+    +current_weight_kg: number
+    +target_weight_kg: number
+    +goal: Goal
+    +activity_level: ActivityLevel
+    +allergies: string[]
+    +dietary_preferences: string[]
+    +cuisine_preferences: string[]
+    +budget_per_week: number
+    +preferred_stores: string[]
+    +city: string
+    +cooking_time_minutes: number
+    +meals_per_day: number
+}
+
+class NutritionTargets {
+    +daily_calories: number
+    +daily_protein: number
+    +daily_fat: number
+    +daily_carbs: number
+}
+
+class FoodRecognitionResult {
+    +items: RecognizedFoodItem[]
+    +total_calories: number
+    +total_protein: number
+    +total_fat: number
+    +total_carbs: number
+    +confidence: number
+}
+
+class RecognizedFoodItem {
+    +name: string
+    +portion_g: number
+    +calories: number
+    +protein: number
+    +fat: number
+    +carbs: number
+    +confidence: number
+}
+
+class RecipeGenerateParams {
+    +meal_type: MealType | null
+    +max_cooking_time: number | null
+    +max_calories: number | null
+    +specific_ingredients: string[] | null
+    +cuisine: string | null
+}
+
+class RecipeFilters {
+    +cuisine: string | null
+    +max_time: number | null
+    +dietary_flags: string[] | null
+    +search_query: string | null
+}
+
+class MealLogInput {
+    +meal_type: MealType
+    +photo_url: string | null
+    +items: MealLogItem[]
+    +notes: string | null
+}
+
+class DailySummary {
+    +date: date
+    +total_calories: number
+    +total_protein: number
+    +total_fat: number
+    +total_carbs: number
+    +target_calories: number
+    +target_protein: number
+    +target_fat: number
+    +target_carbs: number
+    +meals_logged: number
+}
+
+class WeeklySummary {
+    +week_start: date
+    +avg_calories: number
+    +avg_protein: number
+    +avg_fat: number
+    +avg_carbs: number
+    +days_logged: number
+    +daily_summaries: DailySummary[]
+}
+
+class MonthlySummary {
+    +month: string
+    +avg_calories: number
+    +weight_change_kg: number
+    +weekly_summaries: WeeklySummary[]
+}
+
+class TrendData {
+    +calories_trend: TrendPoint[]
+    +weight_trend: TrendPoint[]
+    +protein_trend: TrendPoint[]
+}
+
+class TrendPoint {
+    +date: date
+    +value: number
+}
+
+' ============================================================
+' FRONTEND STORES (Zustand)
+' ============================================================
+
+class AuthStore {
+    +user: User | null
+    +token: string | null
+    +isAuthenticated: boolean
+    +signIn(email: string, password: string): Promise<void>
+    +signUp(email: string, password: string, name: string): Promise<void>
+    +signInWithOAuth(provider: string): Promise<void>
+    +signOut(): void
+}
+
+class ProfileStore {
+    +profile: UserProfile | null
+    +isOnboarded: boolean
+    +loadProfile(): Promise<void>
+    +saveOnboarding(data: OnboardingInput): Promise<void>
+    +updateProfile(data: Partial<OnboardingInput>): Promise<void>
+}
+
+class MealLogStore {
+    +todayLogs: MealLog[]
+    +dailySummary: DailySummary | null
+    +addLog(data: MealLogInput): Promise<void>
+    +loadToday(): Promise<void>
+}
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+User "1" --> "1" UserProfile : has
+User "1" --> "*" MealLog : logs
+User "1" --> "*" MealPlan : has
+User "1" --> "*" Recipe : creates
+User "1" --> "*" ChatMessage : sends
+User "1" --> "*" WeightLog : logs
+MealPlan "1" --> "0..1" ShoppingList : generates
+MealLog "1" *-- "*" MealLogItem : contains
+MealPlan "1" *-- "1" MealPlanData : contains
+MealPlanData "1" *-- "*" MealPlanDay : contains
+MealPlanDay "1" *-- "*" MealPlanMeal : contains
+Recipe "1" *-- "*" RecipeIngredient : contains
+ShoppingList "1" *-- "*" ShoppingItem : contains
+FoodRecognitionResult "1" *-- "*" RecognizedFoodItem : contains
+
+IAuthService ..> User
+IOnboardingService ..> UserProfile
+IFoodRecognitionService ..> FoodRecognitionResult
+IFoodRecognitionService ..> FoodItem
+IMealPlanService ..> MealPlan
+IRecipeService ..> Recipe
+IChatService ..> ChatMessage
+IMealLogService ..> MealLog
+IWeightLogService ..> WeightLog
+IShoppingListService ..> ShoppingList
+IAnalyticsService ..> DailySummary
+IAnalyticsService ..> WeeklySummary
+
+@enduml

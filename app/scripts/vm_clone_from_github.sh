@@ -67,8 +67,16 @@ fi
 # Symlink /var/www/nutriaidiary/app -> .../app
 if [[ -L "$APP_LINK" ]]; then
   rm -f "$APP_LINK"
+elif [[ -d "$APP_LINK" ]]; then
+  if [[ -z "$(find "$APP_LINK" -mindepth 1 -print -quit 2>/dev/null)" ]]; then
+    echo "Пустой каталог $APP_LINK — удаляю, ставлю symlink."
+    rmdir "$APP_LINK"
+  else
+    echo "Ошибка: $APP_LINK — каталог не пустой. Сохраните данные и удалите/переименуйте вручную, затем запустите скрипт снова."
+    exit 1
+  fi
 elif [[ -e "$APP_LINK" ]]; then
-  echo "Ошибка: $APP_LINK существует и не symlink. Переименуйте или удалите вручную."
+  echo "Ошибка: $APP_LINK существует и не symlink/каталог. Переименуйте или удалите вручную."
   exit 1
 fi
 

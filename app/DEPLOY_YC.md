@@ -16,6 +16,8 @@
 
 ## 3. Сеть и VM
 
+**Пошагово для новичка после пуша на GitHub:** [`VM_NEWBIE.md`](VM_NEWBIE.md) (Security Group YC, UFW, Nginx, клон, `.env`, сборка, Certbot). Скрипты: `scripts/vm_clone_from_github.sh`, `scripts/vm_install_app.sh`.
+
 Скрипт первичной настройки Ubuntu-VM (Nginx, UFW, Node, Python, опционально PostgreSQL и Docker): [`scripts/vm_bootstrap_yandex.sh`](scripts/vm_bootstrap_yandex.sh). Запуск от root: задайте `NEW_USER_PASSWORD`, при необходимости `INSTALL_LOCAL_POSTGRES=0` (только Managed PG) или `INSTALL_DOCKER=1`.
 
 1. VPC, security group: вход **443** (и **80** при необходимости) на reverse-proxy; **8000/3000** только с localhost, если прокси на той же VM.

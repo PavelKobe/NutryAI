@@ -289,6 +289,7 @@ EnvironmentFile=-${APP_ROOT}/web/.env.production
 Environment=NODE_ENV=production
 Environment=PORT=3000
 Environment=HOSTNAME=127.0.0.1
+Environment=INTERNAL_API_BASE_URL=http://127.0.0.1:8000
 ExecStart=/usr/bin/npm run start
 Restart=always
 RestartSec=5

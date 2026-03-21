@@ -28,6 +28,8 @@ services:
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://api.nutriaidiary.com}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://nutriaidiary.com}
+      # Прокси стриминга /api/v1/aihub/* → контейнер api (имя сервиса в compose)
+      INTERNAL_API_BASE_URL: http://api:8000
     depends_on:
       - api
     restart: unless-stopped

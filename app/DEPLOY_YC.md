@@ -51,6 +51,8 @@ NEXT_PUBLIC_SITE_URL=https://nutriaidiary.com
 
 Эндпоинт `GET /api/config` на Next отдаёт `API_BASE_URL` для клиента (см. `web/src/app/api/config/route.ts`).
 
+Стриминг ИИ (`client.ai.gentxt` с `stream: true`) в SDK идёт на **тот же origin**, что и сайт (`/api/v1/aihub/gentxt`). На Next добавлен прокси `web/src/app/api/v1/aihub/[...path]/route.ts`; на сервере задай **`INTERNAL_API_BASE_URL`** (куда Next ходит к FastAPI): для systemd на одной ВМ — `http://127.0.0.1:8000` (уже в `vm_bootstrap` для `nutriaidiary-web`), для Docker — `http://api:8000` в `docker-compose.yml`. См. `web/.env.example`.
+
 ## 6. Сборка и запуск Docker
 
 Из каталога `NutryAI/app`:

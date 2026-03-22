@@ -182,11 +182,14 @@ export default function MealPlan() {
       }
       const p = profiles[0];
 
+      const tc = p.target_calories || 2000;
       const prompt = `Составь план питания на 7 дней на русском языке. Верни ТОЛЬКО JSON-массив без markdown.
 Параметры пользователя:
 - Цель: ${p.goal === 'lose' ? 'похудение' : p.goal === 'gain' ? 'набор массы' : 'поддержание веса'}
-- Калории: ${p.target_calories} ккал/день
-- Белки: ${p.target_protein}г, Жиры: ${p.target_fat}г, Углеводы: ${p.target_carbs}г
+- Суточная норма калорий: ${tc} ккал/день — это ОБЯЗАТЕЛЬНАЯ цель на каждый день.
+- Для КАЖДОГО из 7 дней сумма полей calories по всем элементам meals должна быть в диапазоне от ${Math.round(tc * 0.9)} до ${Math.round(tc * 1.1)} ккал (допуск ±10% от ${tc}).
+- Ориентир распределения калорий по приёмам на день: завтрак ~25–30%, обед ~30–35%, ужин ~25–30%, перекус ~10–15% от суточной нормы; сумма четырёх приёмов должна давать указанную суточную сумму.
+- Белки за день в сумме близки к ${p.target_protein}г, жиры к ${p.target_fat}г, углеводы к ${p.target_carbs}г (согласуй с калориями).
 - Аллергии: ${p.allergies || 'нет'}
 - Кухня: ${p.cuisine_preferences || 'Русская'}
 - Бюджет: ${p.budget_per_week || 3000}₽/неделя
@@ -194,7 +197,7 @@ export default function MealPlan() {
 
 Формат JSON:
 [{"day":"Понедельник","meals":[{"type":"breakfast","name":"Название блюда","calories":350,"protein":20,"fat":12,"carbs":40,"cooking_time":15},{"type":"lunch","name":"...","calories":450,"protein":30,"fat":15,"carbs":50,"cooking_time":25},{"type":"dinner","name":"...","calories":400,"protein":28,"fat":14,"carbs":42,"cooking_time":30},{"type":"snack","name":"...","calories":150,"protein":8,"fat":5,"carbs":18,"cooking_time":5}]}]
-Используй российские продукты и блюда. Ровно 7 дней.`;
+Используй российские продукты и блюда. Ровно 7 дней. Не занижай и не завышай суточные калории без причины; ответ — только валидный JSON без markdown.`;
 
       let fullText = '';
       await client.ai.gentxt({
@@ -363,6 +366,7 @@ export default function MealPlan() {
                         {selectedDay === todayDayIndex && todayDayIndex >= 0 && (
                           <label className="flex items-center gap-1.5 text-sm text-slate-500 cursor-pointer select-none">
                             <Checkbox
+                              className="h-5 w-5 shrink-0 rounded-full border-emerald-500/60 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
                               checked={!!planLoggedMeals[`${selectedDay}-${i}`]}
                               onCheckedChange={(c) => toggleMealLogged(selectedDay, i, !!c)}
                               disabled={savingCheckbox === `${selectedDay}-${i}`}
@@ -370,7 +374,7 @@ export default function MealPlan() {
                             {savingCheckbox === `${selectedDay}-${i}` ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
-                              'Съел'
+                              'Съедено'
                             )}
                           </label>
                         )}

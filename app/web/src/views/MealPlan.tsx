@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { client } from '@/lib/api';
@@ -63,14 +63,9 @@ export default function MealPlan() {
   const [planLoggedMeals, setPlanLoggedMeals] = useState<Record<string, number>>({});
   const [savingCheckbox, setSavingCheckbox] = useState<string | null>(null);
 
-  const todayDayIndex = useMemo(() => {
-    if (!weekStart) return -1;
-    const todayStr = new Date().toISOString().split('T')[0];
-    const start = new Date(weekStart + 'T00:00:00').getTime();
-    const today = new Date(todayStr + 'T00:00:00').getTime();
-    const diffDays = Math.floor((today - start) / (24 * 60 * 60 * 1000));
-    return diffDays >= 0 && diffDays < 7 ? diffDays : -1;
-  }, [weekStart]);
+  // План от ИИ: индекс 0 = Пн … 6 = Вс. Раньше брали смещение от week_start (дата генерации) — оно не совпадает с порядком дней в JSON, из‑за этого галочка оказывалась не на том дне.
+  const jsDay = new Date().getDay(); // локально: 0 = Вс … 6 = Сб
+  const todayPlanDayIndex = jsDay === 0 ? 6 : jsDay - 1; // Пн = 0 … Вс = 6
 
   const toggleMealLogged = async (dayIndex: number, mealIndex: number, checked: boolean) => {
     const meal = plan?.[dayIndex]?.meals?.[mealIndex];
@@ -363,7 +358,7 @@ export default function MealPlan() {
                           {MEAL_EMOJI[meal.type] || '🍽️'}{' '}
                           {MEAL_LABELS[meal.type] || meal.type}
                         </span>
-                        {selectedDay === todayDayIndex && todayDayIndex >= 0 && (
+                        {selectedDay === todayPlanDayIndex && (
                           <label className="flex items-center gap-1.5 text-sm text-slate-500 cursor-pointer select-none">
                             <Checkbox
                               className="h-5 w-5 shrink-0 rounded-full border-emerald-500/60 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"

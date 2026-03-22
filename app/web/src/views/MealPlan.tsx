@@ -97,7 +97,7 @@ export default function MealPlan() {
       } else {
         const id = planLoggedMeals[key];
         if (id) {
-          await client.entities.meal_logs.delete({ id });
+          await client.entities.meal_logs.delete({ id: String(id) });
           setPlanLoggedMeals((prev) => {
             const next = { ...prev };
             delete next[key];

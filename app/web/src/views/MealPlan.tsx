@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { client } from '@/lib/api';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import MealPlanSkeleton from '@/components/skeletons/MealPlanSkeleton';
-import { Sparkles, RefreshCw, ChefHat, Clock, Flame, Image as ImageIcon, Loader2, Bookmark, BookmarkCheck } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Sparkles, RefreshCw, ChefHat, Clock, Flame, Loader2, Bookmark, BookmarkCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface MealPlanData {
@@ -45,16 +47,72 @@ const MEAL_LABELS: Record<string, string> = {
 };
 
 const DAYS_RU = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+const DAYS_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 export default function MealPlan() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [plan, setPlan] = useState<DayPlan[] | null>(null);
+  const [weekStart, setWeekStart] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [selectedDay, setSelectedDay] = useState(0);
   const [generatingImage, setGeneratingImage] = useState<string | null>(null);
   const [savingRecipe, setSavingRecipe] = useState<string | null>(null);
   const [savedRecipes, setSavedRecipes] = useState<Set<string>>(new Set());
+  const [planLoggedMeals, setPlanLoggedMeals] = useState<Record<string, number>>({});
+  const [savingCheckbox, setSavingCheckbox] = useState<string | null>(null);
+
+  const todayDayIndex = useMemo(() => {
+    if (!weekStart) return -1;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const start = new Date(weekStart + 'T00:00:00').getTime();
+    const today = new Date(todayStr + 'T00:00:00').getTime();
+    const diffDays = Math.floor((today - start) / (24 * 60 * 60 * 1000));
+    return diffDays >= 0 && diffDays < 7 ? diffDays : -1;
+  }, [weekStart]);
+
+  const toggleMealLogged = async (dayIndex: number, mealIndex: number, checked: boolean) => {
+    const meal = plan?.[dayIndex]?.meals?.[mealIndex];
+    if (!meal) return;
+    const key = `${dayIndex}-${mealIndex}`;
+    setSavingCheckbox(key);
+    try {
+      if (checked) {
+        const res = await client.entities.meal_logs.create({
+          data: {
+            food_name: meal.name,
+            meal_type: meal.type,
+            calories: meal.calories || 0,
+            protein: meal.protein || 0,
+            fat: meal.fat || 0,
+            carbs: meal.carbs || 0,
+            logged_at: new Date().toISOString(),
+          },
+        });
+        const id = res?.data?.id;
+        if (id) setPlanLoggedMeals((prev) => ({ ...prev, [key]: id }));
+        queryClient.invalidateQueries({ queryKey: ['meal_logs_today'] });
+        queryClient.invalidateQueries({ queryKey: ['meal_logs_analytics'] });
+      } else {
+        const id = planLoggedMeals[key];
+        if (id) {
+          await client.entities.meal_logs.delete({ id });
+          setPlanLoggedMeals((prev) => {
+            const next = { ...prev };
+            delete next[key];
+            return next;
+          });
+          queryClient.invalidateQueries({ queryKey: ['meal_logs_today'] });
+          queryClient.invalidateQueries({ queryKey: ['meal_logs_analytics'] });
+        }
+      }
+    } catch {
+      toast.error('Не удалось обновить дневник питания');
+    } finally {
+      setSavingCheckbox(null);
+    }
+  };
 
   const saveRecipe = async (dayIndex: number, mealIndex: number) => {
     const meal = plan?.[dayIndex]?.meals?.[mealIndex];
@@ -101,6 +159,7 @@ export default function MealPlan() {
         try {
           const parsed = JSON.parse(plans[0].plan_data);
           setPlan(parsed);
+          setWeekStart(plans[0].week_start || null);
         } catch {
           setPlan(null);
         }
@@ -154,9 +213,10 @@ export default function MealPlan() {
             const jsonMatch = jsonStr.match(/\[[\s\S]*\]/);
             if (jsonMatch) jsonStr = jsonMatch[0];
             const parsed: DayPlan[] = JSON.parse(jsonStr);
-            setPlan(parsed);
-
             const today = new Date().toISOString().split('T')[0];
+            setPlan(parsed);
+            setWeekStart(today);
+
             await client.entities.meal_plans.create({
               data: {
                 plan_data: JSON.stringify(parsed),
@@ -267,7 +327,7 @@ export default function MealPlan() {
                       : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                   }`}
                 >
-                  {day.day?.slice(0, 2) || DAYS_RU[i]?.slice(0, 2)}
+                  {DAYS_SHORT[i] ?? DAYS_RU[i]?.slice(0, 2)}
                 </button>
               ))}
             </div>
@@ -295,10 +355,26 @@ export default function MealPlan() {
                       </div>
                     )}
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-slate-400">
-                        {MEAL_EMOJI[meal.type] || '🍽️'}{' '}
-                        {MEAL_LABELS[meal.type] || meal.type}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-slate-400">
+                          {MEAL_EMOJI[meal.type] || '🍽️'}{' '}
+                          {MEAL_LABELS[meal.type] || meal.type}
+                        </span>
+                        {selectedDay === todayDayIndex && todayDayIndex >= 0 && (
+                          <label className="flex items-center gap-1.5 text-sm text-slate-500 cursor-pointer select-none">
+                            <Checkbox
+                              checked={!!planLoggedMeals[`${selectedDay}-${i}`]}
+                              onCheckedChange={(c) => toggleMealLogged(selectedDay, i, !!c)}
+                              disabled={savingCheckbox === `${selectedDay}-${i}`}
+                            />
+                            {savingCheckbox === `${selectedDay}-${i}` ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              'Съел'
+                            )}
+                          </label>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => saveRecipe(selectedDay, i)}

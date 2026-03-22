@@ -355,8 +355,11 @@ export default function Profile() {
                 <Label className="text-slate-300 mb-2 block">Возраст</Label>
                 <Input
                   type="number"
-                  value={form.age}
-                  onChange={(e) => updateForm('age', parseInt(e.target.value) || 0)}
+                  value={form.age === 0 ? '' : form.age}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    updateForm('age', v === '' ? 0 : parseInt(v, 10) || 0);
+                  }}
                   className="bg-slate-800 border-slate-700 text-white rounded-xl"
                   min={14}
                   max={100}
@@ -369,8 +372,11 @@ export default function Profile() {
                   <Label className="text-slate-300 mb-2 block">Рост (см)</Label>
                   <Input
                     type="number"
-                    value={form.height_cm}
-                    onChange={(e) => updateForm('height_cm', parseInt(e.target.value) || 0)}
+                    value={form.height_cm === 0 ? '' : form.height_cm}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      updateForm('height_cm', v === '' ? 0 : parseInt(v, 10) || 0);
+                    }}
                     className="bg-slate-800 border-slate-700 text-white rounded-xl"
                     min={100}
                     max={250}
@@ -380,8 +386,11 @@ export default function Profile() {
                   <Label className="text-slate-300 mb-2 block">Вес (кг)</Label>
                   <Input
                     type="number"
-                    value={form.weight_kg}
-                    onChange={(e) => updateForm('weight_kg', parseFloat(e.target.value) || 0)}
+                    value={form.weight_kg === 0 ? '' : form.weight_kg}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      updateForm('weight_kg', v === '' ? 0 : parseFloat(v) || 0);
+                    }}
                     className="bg-slate-800 border-slate-700 text-white rounded-xl"
                     min={30}
                     max={300}
@@ -395,8 +404,11 @@ export default function Profile() {
                 <Label className="text-slate-300 mb-2 block">Целевой вес (кг)</Label>
                 <Input
                   type="number"
-                  value={form.target_weight_kg}
-                  onChange={(e) => updateForm('target_weight_kg', parseFloat(e.target.value) || 0)}
+                  value={form.target_weight_kg === 0 ? '' : form.target_weight_kg}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    updateForm('target_weight_kg', v === '' ? 0 : parseFloat(v) || 0);
+                  }}
                   className="bg-slate-800 border-slate-700 text-white rounded-xl"
                   min={30}
                   max={300}
@@ -491,8 +503,11 @@ export default function Profile() {
                 <Label className="text-slate-300 mb-2 block">Бюджет на еду (₽/неделя)</Label>
                 <Input
                   type="number"
-                  value={form.budget_per_week}
-                  onChange={(e) => updateForm('budget_per_week', parseInt(e.target.value) || 0)}
+                  value={form.budget_per_week === 0 ? '' : form.budget_per_week}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    updateForm('budget_per_week', v === '' ? 0 : parseInt(v, 10) || 0);
+                  }}
                   className="bg-slate-800 border-slate-700 text-white rounded-xl"
                   min={500}
                   step={500}

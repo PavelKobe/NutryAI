@@ -52,25 +52,26 @@ const DAYS_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 export default function MealPlan() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  // План от ИИ: индекс 0 = Пн … 6 = Вс.
+  const jsDay = new Date().getDay(); // локально: 0 = Вс … 6 = Сб
+  const todayPlanDayIndex = jsDay === 0 ? 6 : jsDay - 1; // Пн = 0 … Вс = 6
+
   const [plan, setPlan] = useState<DayPlan[] | null>(null);
   const [weekStart, setWeekStart] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [selectedDay, setSelectedDay] = useState(0);
+  const [selectedDay, setSelectedDay] = useState(todayPlanDayIndex);
   const [generatingImage, setGeneratingImage] = useState<string | null>(null);
   const [savingRecipe, setSavingRecipe] = useState<string | null>(null);
   const [savedRecipes, setSavedRecipes] = useState<Set<string>>(new Set());
   const [planLoggedMeals, setPlanLoggedMeals] = useState<Record<string, number>>({});
   const [savingCheckbox, setSavingCheckbox] = useState<string | null>(null);
 
-  // План от ИИ: индекс 0 = Пн … 6 = Вс. Раньше брали смещение от week_start (дата генерации) — оно не совпадает с порядком дней в JSON, из‑за этого галочка оказывалась не на том дне.
-  const jsDay = new Date().getDay(); // локально: 0 = Вс … 6 = Сб
-  const todayPlanDayIndex = jsDay === 0 ? 6 : jsDay - 1; // Пн = 0 … Вс = 6
-
   const toggleMealLogged = async (dayIndex: number, mealIndex: number, checked: boolean) => {
     const meal = plan?.[dayIndex]?.meals?.[mealIndex];
     if (!meal) return;
     const key = `${dayIndex}-${mealIndex}`;
+    if (!checked && planLoggedMeals[key]) return;
     setSavingCheckbox(key);
     try {
       if (checked) {
@@ -340,7 +341,7 @@ export default function MealPlan() {
                 return (
                   <div
                     key={`${meal.type}-${i}`}
-                    className="p-4 rounded-2xl bg-slate-900/50 border border-slate-800/50"
+                    className={`p-4 rounded-2xl bg-slate-900/50 border border-slate-800/50 transition-opacity ${planLoggedMeals[`${selectedDay}-${i}`] ? 'opacity-60' : ''}`}
                   >
                     {/* Meal image */}
                     {meal.image_url && (
@@ -359,12 +360,12 @@ export default function MealPlan() {
                           {MEAL_LABELS[meal.type] || meal.type}
                         </span>
                         {selectedDay === todayPlanDayIndex && (
-                          <label className="flex items-center gap-1.5 text-sm text-slate-500 cursor-pointer select-none">
+                          <label className={`flex items-center gap-1.5 text-sm select-none ${planLoggedMeals[`${selectedDay}-${i}`] ? 'cursor-default text-emerald-400' : 'cursor-pointer text-slate-500'}`}>
                             <Checkbox
                               className="h-5 w-5 shrink-0 rounded-full border-emerald-500/60 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
                               checked={!!planLoggedMeals[`${selectedDay}-${i}`]}
                               onCheckedChange={(c) => toggleMealLogged(selectedDay, i, !!c)}
-                              disabled={savingCheckbox === `${selectedDay}-${i}`}
+                              disabled={!!planLoggedMeals[`${selectedDay}-${i}`] || savingCheckbox === `${selectedDay}-${i}`}
                             />
                             {savingCheckbox === `${selectedDay}-${i}` ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -398,7 +399,7 @@ export default function MealPlan() {
                         </div>
                       </div>
                     </div>
-                    <p className="font-medium text-white mb-2">{meal.name}</p>
+                    <p className={`font-medium mb-2 ${planLoggedMeals[`${selectedDay}-${i}`] ? 'line-through text-slate-500' : 'text-white'}`}>{meal.name}</p>
                     <div className="flex items-center gap-4 text-xs">
                       <span className="flex items-center gap-1 text-orange-400">
                         <Flame className="w-3 h-3" /> {meal.calories} ккал

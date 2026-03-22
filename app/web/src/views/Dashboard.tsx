@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { client } from '@/lib/api';
 import AppLayout from '@/components/layout/AppLayout';
 import { Progress } from '@/components/ui/progress';
@@ -16,6 +17,8 @@ import {
   Sparkles,
   CalendarDays,
   Camera,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -47,11 +50,13 @@ const MEAL_TYPE_LABELS: Record<string, string> = {
 
 export default function Dashboard() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [todayLogs, setTodayLogs] = useState<MealLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [aiInsight, setAiInsight] = useState('');
   const [insightLoading, setInsightLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -99,6 +104,20 @@ export default function Dashboard() {
 
   const getPercent = (current: number, target: number) =>
     target > 0 ? Math.min(Math.round((current / target) * 100), 100) : 0;
+
+  const deleteLog = async (id: number) => {
+    setDeletingId(id);
+    try {
+      await client.entities.meal_logs.delete({ id: String(id) });
+      setTodayLogs((prev) => prev.filter((l) => l.id !== id));
+      queryClient.invalidateQueries({ queryKey: ['meal_logs_today'] });
+      queryClient.invalidateQueries({ queryKey: ['meal_logs_analytics'] });
+    } catch {
+      toast.error('Не удалось удалить запись');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const generateInsight = async () => {
     if (!profile) return;
@@ -272,17 +291,29 @@ export default function Dashboard() {
                   key={log.id}
                   className="p-3 rounded-xl bg-slate-900/50 border border-slate-800/50 flex items-center justify-between"
                 >
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <span className="text-xs text-slate-500">
                       {MEAL_TYPE_LABELS[log.meal_type] || log.meal_type}
                     </span>
-                    <p className="font-medium text-sm">{log.food_name}</p>
+                    <p className="font-medium text-sm truncate">{log.food_name}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-emerald-400">{Math.round(log.calories)} ккал</p>
-                    <p className="text-xs text-slate-500">
-                      Б{Math.round(log.protein)} Ж{Math.round(log.fat)} У{Math.round(log.carbs)}
-                    </p>
+                  <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-emerald-400">{Math.round(log.calories)} ккал</p>
+                      <p className="text-xs text-slate-500">
+                        Б{Math.round(log.protein)} Ж{Math.round(log.fat)} У{Math.round(log.carbs)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => deleteLog(log.id)}
+                      disabled={deletingId === log.id}
+                      className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                      title="Удалить запись"
+                    >
+                      {deletingId === log.id
+                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                        : <Trash2 className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
               ))}

@@ -71,7 +71,6 @@ export default function MealPlan() {
     const meal = plan?.[dayIndex]?.meals?.[mealIndex];
     if (!meal) return;
     const key = `${dayIndex}-${mealIndex}`;
-    if (!checked && planLoggedMeals[key]) return;
     setSavingCheckbox(key);
     try {
       if (checked) {
@@ -145,17 +144,39 @@ export default function MealPlan() {
 
   const loadPlan = async () => {
     try {
-      const res = await client.entities.meal_plans.query({
-        query: { status: 'active' },
-        sort: '-created_at',
-        limit: 1,
-      });
-      const plans: MealPlanData[] = res?.data?.items || [];
+      const [planRes, logsRes] = await Promise.all([
+        client.entities.meal_plans.query({
+          query: { status: 'active' },
+          sort: '-created_at',
+          limit: 1,
+        }),
+        client.entities.meal_logs.query({ sort: '-created_at', limit: 50 }),
+      ]);
+
+      const plans: MealPlanData[] = planRes?.data?.items || [];
       if (plans.length > 0 && plans[0].plan_data) {
         try {
-          const parsed = JSON.parse(plans[0].plan_data);
+          const parsed: DayPlan[] = JSON.parse(plans[0].plan_data);
           setPlan(parsed);
           setWeekStart(plans[0].week_start || null);
+
+          const today = new Date().toISOString().split('T')[0];
+          const todayLogs: { id: number; meal_type: string; food_name: string; logged_at: string }[] =
+            (logsRes?.data?.items || []).filter(
+              (l: { logged_at?: string }) => (l.logged_at || '').split('T')[0] === today
+            );
+
+          const logMap: Record<string, number> = {};
+          for (const log of todayLogs) {
+            logMap[`${log.meal_type}:${log.food_name}`] = log.id;
+          }
+
+          const restored: Record<string, number> = {};
+          (parsed[todayPlanDayIndex]?.meals || []).forEach((meal, i) => {
+            const id = logMap[`${meal.type}:${meal.name}`];
+            if (id) restored[`${todayPlanDayIndex}-${i}`] = id;
+          });
+          setPlanLoggedMeals(restored);
         } catch {
           setPlan(null);
         }
@@ -360,12 +381,12 @@ export default function MealPlan() {
                           {MEAL_LABELS[meal.type] || meal.type}
                         </span>
                         {selectedDay === todayPlanDayIndex && (
-                          <label className={`flex items-center gap-1.5 text-sm select-none ${planLoggedMeals[`${selectedDay}-${i}`] ? 'cursor-default text-emerald-400' : 'cursor-pointer text-slate-500'}`}>
+                          <label className={`flex items-center gap-1.5 text-sm select-none cursor-pointer ${planLoggedMeals[`${selectedDay}-${i}`] ? 'text-emerald-400' : 'text-slate-500'}`}>
                             <Checkbox
                               className="h-5 w-5 shrink-0 rounded-full border-emerald-500/60 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
                               checked={!!planLoggedMeals[`${selectedDay}-${i}`]}
                               onCheckedChange={(c) => toggleMealLogged(selectedDay, i, !!c)}
-                              disabled={!!planLoggedMeals[`${selectedDay}-${i}`] || savingCheckbox === `${selectedDay}-${i}`}
+                              disabled={savingCheckbox === `${selectedDay}-${i}`}
                             />
                             {savingCheckbox === `${selectedDay}-${i}` ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />

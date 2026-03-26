@@ -25,20 +25,41 @@
 
 ## 4. Переменные окружения (бэкенд)
 
-Файл `NutryAI/app/.env` по образцу `.env.example`:
+Файл на ВМ: **`NutryAI/app/.env`** (каталог `app/` — родитель `backend/` и `web/`). Под systemd unit `nutriaidiary-api` задаётся `EnvironmentFile=-…/app/.env` (см. `scripts/vm_bootstrap_yandex.sh`). Полный шаблон и комментарии: **[`app/.env.example`](.env.example)** — не коммитить реальные секреты.
+
+### Обязательные в продакшене
 
 | Переменная | Назначение |
 |------------|------------|
-| `DATABASE_URL` | PostgreSQL async |
-| `JWT_SECRET_KEY` | Подпись JWT сессии приложения |
-| `FRONTEND_URL` | `https://nutriaidiary.com` (канонический фронт) |
-| `PYTHON_BACKEND_URL` | `https://api.nutriaidiary.com` |
-| `APP_AI_BASE_URL` | `https://openrouter.ai/api/v1` |
-| `APP_AI_KEY` | Ключ OpenRouter |
+| `DATABASE_URL` | Строка PostgreSQL для async-движка (`postgresql+asyncpg://…` или `postgresql://…` — бэкенд при необходимости нормализует). Без неё приложение и Alembic не стартуют. |
+| `JWT_SECRET_KEY` | Секрет подписи JWT (длинная случайная строка). |
+| `FRONTEND_URL` | Публичный URL основного фронта, например `https://nutriaidiary.com`. |
+| `PYTHON_BACKEND_URL` | Публичный URL API, например `https://api.nutriaidiary.com`. |
+| `APP_AI_BASE_URL` | База OpenRouter: `https://openrouter.ai/api/v1`. |
+| `APP_AI_KEY` | API-ключ OpenRouter. |
+| `ENVIRONMENT` | Для продакшена: **`prod`** (иначе может подхватываться `app/backend/.env_development` и dev-режим). |
+
+### Рекомендуемые (есть разумные дефолты, лучше задать явно)
+
+| Переменная | Назначение |
+|------------|------------|
+| `JWT_ALGORITHM` | Обычно `HS256`. |
+| `JWT_EXPIRE_MINUTES` | Время жизни access-токена в минутах (часто `60`). |
+| `PORT` | Порт uvicorn внутри ВМ; с nginx на `127.0.0.1:8000` — **`8000`**. |
+
+### Опционально
+
+| Переменная | Назначение |
+|------------|------------|
+| `CORS_EXTRA_ORIGINS` | Доп. origin’ы для браузера **через запятую** (к списку в `main.py`: основной сайт, `www`, `admin`, localhost). Пример: стейджинг `https://staging.nutriaidiary.com`. |
+| `OPENROUTER_HTTP_REFERER` / `OPENROUTER_APP_NAME` | Атрибуция запросов к OpenRouter, если провайдер требует. |
+| `ADMIN_USER_ID`, `ADMIN_USER_EMAIL` | Явная привязка админа (см. `.env.example`). |
+| `ADMIN_BOOTSTRAP_PASSWORD` | **Только dev:** разовая установка пароля админа при `ENVIRONMENT=dev`, если у админа ещё нет `password_hash`. На проде не использовать. |
+| `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY` | Если включены платежи ЮKassa. |
+| `OSS_SERVICE_URL`, `OSS_API_KEY` | Если используется внешнее объектное хранилище из роутера storage. |
+| `IS_LAMBDA` | `true` только для AWS Lambda; на обычной ВМ не задавать или `false`. |
 
 Аутентификация: регистрация и вход по **email + пароль** (`POST /api/v1/auth/register`, `POST /api/v1/auth/login`), JWT в `Authorization: Bearer` (фронт хранит в `localStorage` под ключом `token`).
-
-Дополнительные CORS-origin через запятую: `CORS_EXTRA_ORIGINS=https://staging.example.com`
 
 ## 5. Фронт (Next)
 

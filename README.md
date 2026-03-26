@@ -1,6 +1,6 @@
 # NutriAI Diary
 
-Монорепозиторий: **FastAPI** (бэкенд) + **Next.js 15** (веб и продакшен-UI). Исторический фронт на Vite архивирован в `archive/frontend-vite/`.
+Монорепозиторий: **FastAPI** (бэкенд) + **Next.js 15** (веб и продакшен-UI). Каталог **`archive/`** в git не входит (см. `.gitignore`); при необходимости старый Vite-SPA держите только локально или в отдельном бэкапе.
 
 ## Структура
 
@@ -10,7 +10,7 @@
 | [`app/web/`](app/web/) | Next.js (App Router), лендинг, личный кабинет, админка |
 | [`app/docker/`](app/docker/) | `Dockerfile.backend`, `Dockerfile.web` |
 | [`app/scripts/`](app/scripts/) | Скрипты деплоя / VM |
-| [`archive/frontend-vite/`](archive/frontend-vite/) | Архив SPA на Vite (не для продакшена) |
+| `archive/` (локально, не в GitHub) | По желанию: архив legacy Vite-SPA, не для продакшена |
 
 ## Локальная разработка
 

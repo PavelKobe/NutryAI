@@ -21,9 +21,8 @@ coverage/
 .nyc_output/
 .cursor/
 
-# Архив legacy-фронта: не коммитить зависимости и сборки
-archive/**/node_modules/
-archive/**/dist/
+# Архив legacy (Vite и пр.) — не в репозиторий
+/archive/
 # Явно: локальный бэкенд (уже покрыто .env.*, оставлено для наглядности)
 app/backend/.env_development
 **/.next/

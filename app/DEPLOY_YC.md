@@ -64,10 +64,15 @@ docker compose up -d
 
 За reverse-proxy (nginx / Caddy):
 
-- `nutriaidiary.com` → `127.0.0.1:3000` (Next)
+- `nutriaidiary.com` (+ `www`) → `127.0.0.1:3000` (Next)
+- `admin.nutriaidiary.com` → `127.0.0.1:3000` (тот же Next, маршруты `/admin/*`)
 - `api.nutriaidiary.com` → `127.0.0.1:8000` (FastAPI)
 
-TLS: Let’s Encrypt или сертификат Yandex Certificate Manager.
+**CORS и `/api/v1/admin/*`:** заголовки `Access-Control-*` и ответы на **OPTIONS** (preflight) отдаёт **FastAPI** (`CORSMiddleware` в `app/backend/main.py`, в т.ч. origin `https://admin.nutriaidiary.com`). В nginx на `api.*` **не** добавляйте свои `add_header Access-Control-*` к ответам прокси — иначе получите дублирование и ошибки в браузере. Достаточно проксировать все методы на uvicorn (как в [`scripts/vm_bootstrap_yandex.sh`](scripts/vm_bootstrap_yandex.sh)).
+
+TLS: Let’s Encrypt (`certbot --nginx` с `-d` для основного домена, `www`, **admin** и API) или сертификат Yandex Certificate Manager.
+
+**Уже развёрнутая ВМ без блока admin:** добавьте в `sites-available/nutriaidiary` `server { listen 80; server_name admin.nutriaidiary.com; ... }` по образцу из актуального `vm_bootstrap_yandex.sh`, затем `nginx -t && systemctl reload nginx` и расширьте certbot новым `-d`.
 
 ## 7. Миграции Alembic
 

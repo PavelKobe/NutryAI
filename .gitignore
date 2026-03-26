@@ -1,4 +1,6 @@
 venv/
+.venv/
+**/.venv/
 *.log
 node_modules/
 build/
@@ -9,9 +11,27 @@ vite.config.ts.timestamp-*
 .env
 .env.*
 !.env.example
+# Next.js / tooling locals
+.env.local
+.env*.local
+app/web/.env.local
+app/web/.env*.local
+# Coverage / IDE (optional)
+coverage/
+.nyc_output/
+.cursor/
+
+# Архив legacy-фронта: не коммитить зависимости и сборки
+archive/**/node_modules/
+archive/**/dist/
+# Явно: локальный бэкенд (уже покрыто .env.*, оставлено для наглядности)
+app/backend/.env_development
 **/.next/
 web/.next/
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
 *.tsbuildinfo
+
+# Локальная копия шаблона nginx для ВМ (не коммитить; в репо есть nginx.conf.example)
+/nginx.conf

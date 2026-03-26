@@ -1,8 +1,28 @@
-**/.git
-**/__pycache__
-**/*.pyc
-**/.env
-**/logs
-**/node_modules
-**/.next
-**/web/.next
+# Build context is this directory (`app/`). Used by app/docker/Dockerfile.*.
+
+# Backend — не тащить venv, кэши и секреты
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.py[cod]
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Web
+web/node_modules/
+web/.next/
+web/out/
+web/.env
+web/.env.*
+!web/.env.example
+
+# Legacy Vite (если остаётся в дереве)
+frontend/node_modules/
+frontend/dist/
+
+# Прочее
+**/*.log
+.git/
+archive/

@@ -144,7 +144,7 @@ export default function MealPlan() {
 
   const loadPlan = async () => {
     try {
-      const [planRes, logsRes] = await Promise.all([
+      const [planOutcome, logsOutcome] = await Promise.allSettled([
         client.entities.meal_plans.query({
           query: { status: 'active' },
           sort: '-created_at',
@@ -152,6 +152,19 @@ export default function MealPlan() {
         }),
         client.entities.meal_logs.query({ sort: '-created_at', limit: 50 }),
       ]);
+
+      const planRes =
+        planOutcome.status === 'fulfilled' ? planOutcome.value : null;
+      const logsRes =
+        logsOutcome.status === 'fulfilled' ? logsOutcome.value : null;
+
+      if (planOutcome.status === 'rejected') {
+        console.error('meal_plans query failed:', planOutcome.reason);
+        toast.error('Не удалось загрузить план питания (ошибка сервера)');
+      }
+      if (logsOutcome.status === 'rejected') {
+        console.error('meal_logs query failed:', logsOutcome.reason);
+      }
 
       const plans: MealPlanData[] = planRes?.data?.items || [];
       if (plans.length > 0 && plans[0].plan_data) {
@@ -162,7 +175,7 @@ export default function MealPlan() {
 
           const today = new Date().toISOString().split('T')[0];
           const todayLogs: { id: number; meal_type: string; food_name: string; logged_at: string }[] =
-            (logsRes?.data?.items || []).filter(
+            (logsRes?.data?.items ?? []).filter(
               (l: { logged_at?: string }) => (l.logged_at || '').split('T')[0] === today
             );
 

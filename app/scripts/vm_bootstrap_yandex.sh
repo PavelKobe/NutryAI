@@ -15,6 +15,8 @@ set -euo pipefail
 : "${NEW_USER_PASSWORD:=}" # задайте до запуска: export NEW_USER_PASSWORD='...'
 : "${DOMAIN:=nutriaidiary.com}"
 : "${API_DOMAIN:=api.nutriaidiary.com}"
+# Админка Next.js (те же :3000, что основной сайт). Должна быть в DNS и в CORS бэкенда — см. main.py _cors_origins
+: "${ADMIN_DOMAIN:=admin.nutriaidiary.com}"
 : "${APP_ROOT:=/var/www/nutriaidiary/app}" # сюда кладите клон с путями app/backend и app/web
 
 # Локальный PostgreSQL на VM (0 = пропустить, используйте Yandex Managed + DATABASE_URL в .env)
@@ -31,6 +33,7 @@ echo "Настройка VM для Nutriaidiary (Yandex Cloud)"
 echo "=========================================="
 echo "Пользователь: $NEW_USER"
 echo "Фронт: https://$DOMAIN (+ www)"
+echo "Админка: https://$ADMIN_DOMAIN -> Next :3000"
 echo "API: https://$API_DOMAIN"
 echo "Корень приложения: $APP_ROOT"
 echo "Локальный PostgreSQL: $INSTALL_LOCAL_POSTGRES"
@@ -169,7 +172,7 @@ fi
 
 cat > /etc/nginx/sites-available/nutriaidiary <<NGX
 # Этап 1: только HTTP. После прописанного DNS:
-#   sudo certbot --nginx -d ${DOMAIN} -d www.${DOMAIN} -d ${API_DOMAIN}
+#   sudo certbot --nginx -d ${DOMAIN} -d www.${DOMAIN} -d ${ADMIN_DOMAIN} -d ${API_DOMAIN}
 
 # Фронт Next.js (nutriaidiary.com + www)
 server {
@@ -195,7 +198,34 @@ server {
     }
 }
 
+# Админ-панель (Next.js на том же порту, что основной сайт)
+server {
+    listen 80;
+    server_name ${ADMIN_DOMAIN};
+    access_log /var/log/nginx/nutriaidiary-admin-access.log;
+    error_log  /var/log/nginx/nutriaidiary-admin-error.log;
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
+    }
+}
+
 # API FastAPI
+# CORS (Access-Control-* и ответы на OPTIONS / preflight) отдаёт приложение (FastAPI CORSMiddleware в main.py).
+# В _cors_origins уже есть https://${ADMIN_DOMAIN} — запросы с админки на ${API_DOMAIN} (/api/v1/admin/* и др.) валидны.
+# Nginx только проксирует; не добавляйте здесь add_header Access-Control-* — иначе дублирование заголовков в ответе.
 server {
     listen 80;
     server_name ${API_DOMAIN};
@@ -212,6 +242,8 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        # Проброс preflight и прочих методов на uvicorn (нужно для CORS из браузера)
+        proxy_set_header Origin \$http_origin;
         proxy_connect_timeout 300s;
         proxy_send_timeout 300s;
         proxy_read_timeout 300s;
@@ -344,8 +376,8 @@ echo ""
 echo "4) Запуск:"
 echo "   sudo systemctl enable --now nutriaidiary-api nutriaidiary-web"
 echo ""
-echo "5) TLS (DNS A/AAAA на эту VM уже должны быть):"
-echo "   sudo certbot --nginx -d ${DOMAIN} -d www.${DOMAIN} -d ${API_DOMAIN}"
+echo "5) TLS (DNS A/AAAA на эту VM уже должны быть, в т.ч. для admin):"
+echo "   sudo certbot --nginx -d ${DOMAIN} -d www.${DOMAIN} -d ${ADMIN_DOMAIN} -d ${API_DOMAIN}"
 echo ""
 echo "6) Docker-вариант: INSTALL_DOCKER=1 при повторном прогоне или вручную:"
 echo "   cd ${APP_ROOT} && docker compose up -d"

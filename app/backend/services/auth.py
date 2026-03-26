@@ -53,6 +53,8 @@ class AuthService:
         user = await self.get_user_by_email(email.strip().lower())
         if not user or not user.password_hash:
             return None
+        if not getattr(user, "is_active", True):
+            return None
         if not verify_password(password, user.password_hash):
             return None
         user.last_login = datetime.now(timezone.utc)
@@ -76,6 +78,7 @@ class AuthService:
             "sub": user.id,
             "email": user.email,
             "role": user.role,
+            "is_active": bool(getattr(user, "is_active", True)),
         }
 
         if user.name:
@@ -87,8 +90,16 @@ class AuthService:
         return token, expires_at, claims
 
 
+def _dev_admin_bootstrap_password() -> Optional[str]:
+    """ENVIRONMENT=dev only: one-shot password from ADMIN_BOOTSTRAP_PASSWORD when admin has no hash."""
+    if os.environ.get("ENVIRONMENT", "").strip().lower() != "dev":
+        return None
+    p = (os.environ.get("ADMIN_BOOTSTRAP_PASSWORD") or "").strip()
+    return p or None
+
+
 async def initialize_admin_user():
-    """Create or bump admin user from env (no password — set via app or SQL if needed)."""
+    """Create or update admin from ADMIN_USER_ID / ADMIN_USER_EMAIL; optional dev bootstrap password."""
     if "MGX_IGNORE_INIT_ADMIN" in os.environ:
         logger.info("Ignore initialize admin")
         return
@@ -105,6 +116,7 @@ async def initialize_admin_user():
         return
 
     normalized_email = admin_user_email.strip().lower()
+    bootstrap = _dev_admin_bootstrap_password()
 
     async with db_manager.async_session_maker() as db:
         result = await db.execute(select(User).where(User.id == admin_user_id))
@@ -114,6 +126,10 @@ async def initialize_admin_user():
             if user.role != "admin":
                 user.role = "admin"
             user.email = normalized_email
+            if hasattr(user, "is_active") and user.is_active is False:
+                user.is_active = True
+            if bootstrap and not user.password_hash:
+                user.password_hash = hash_password(bootstrap)
             await db.commit()
             logger.debug("Updated admin user %s", admin_user_id)
             return
@@ -123,7 +139,8 @@ async def initialize_admin_user():
             logger.warning("Admin email already used by another user, skipping admin row creation")
             return
 
-        admin_user = User(id=admin_user_id, email=normalized_email, role="admin", password_hash=None)
+        pw = hash_password(bootstrap) if bootstrap else None
+        admin_user = User(id=admin_user_id, email=normalized_email, role="admin", password_hash=pw)
         db.add(admin_user)
         await db.commit()
         logger.debug("Created admin user: %s", admin_user_id)

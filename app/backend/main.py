@@ -5,6 +5,26 @@ import pkgutil
 import traceback
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
+
+
+def _load_env_development_for_local() -> None:
+    """Load app/backend/.env_development only outside production.
+
+    Production (Yandex Cloud, etc.) must set ENVIRONMENT=prod in the process environment
+    before startup; then this file is never loaded, even if it exists on disk.
+    """
+    if os.environ.get("ENVIRONMENT", "").strip().lower() == "prod":
+        return
+    env_path = Path(__file__).resolve().parent / ".env_development"
+    if not env_path.is_file():
+        return
+    from dotenv import load_dotenv
+
+    load_dotenv(env_path, override=True)
+
+
+_load_env_development_for_local()
 
 from core.config import settings
 from fastapi import FastAPI, HTTPException, Request, status
@@ -89,6 +109,7 @@ app = FastAPI(
 _cors_origins = [
     "https://nutriaidiary.com",
     "https://www.nutriaidiary.com",
+    "https://admin.nutriaidiary.com",
     "http://nutriaidiary.com",
     "http://www.nutriaidiary.com",
     "http://localhost:3000",
@@ -232,6 +253,12 @@ def run_in_debug_mode(app: FastAPI):
         load_dotenv(env_path, override=True)
         logger = logging.getLogger(__name__)
         logger.info(f"Loaded environment variables from {env_path}")
+
+    # После app/.env снова применить .env_development локально (не в prod)
+    dev_path = Path(__file__).resolve().parent / ".env_development"
+    if dev_path.is_file() and os.environ.get("ENVIRONMENT", "").strip().lower() != "prod":
+        load_dotenv(dev_path, override=True)
+        logging.getLogger(__name__).info("Loaded local overrides from %s", dev_path)
 
     # In debug mode, use asyncio.run() directly to avoid uvicorn's asyncio_run conflicts
     config = uvicorn.Config(

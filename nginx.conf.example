@@ -1,0 +1,79 @@
+# Шаблон для /etc/nginx/sites-available/nutriaidiary (Ubuntu: sites-enabled).
+# Скопируйте: cp nginx.conf.example nginx.conf — правьте nginx.conf локально (в git не коммитится).
+# После certbot появятся listen 443 ssl и include ssl — не затирайте вручную без нужды.
+#
+# Этап HTTP (порт 80). Certbot:
+#   sudo certbot --nginx -d nutriaidiary.com -d www.nutriaidiary.com -d admin.nutriaidiary.com -d api.nutriaidiary.com
+
+# Фронт Next.js
+server {
+    listen 80;
+    server_name nutriaidiary.com www.nutriaidiary.com;
+    access_log /var/log/nginx/nutriaidiary-web-access.log;
+    error_log  /var/log/nginx/nutriaidiary-web-error.log;
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
+    }
+}
+
+# Админ-панель (тот же Next :3000)
+server {
+    listen 80;
+    server_name admin.nutriaidiary.com;
+    access_log /var/log/nginx/nutriaidiary-admin-access.log;
+    error_log  /var/log/nginx/nutriaidiary-admin-error.log;
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
+    }
+}
+
+# API FastAPI
+# CORS отдаёт FastAPI (main.py). Не дублировать add_header Access-Control-* здесь.
+server {
+    listen 80;
+    server_name api.nutriaidiary.com;
+    access_log /var/log/nginx/nutriaidiary-api-access.log;
+    error_log  /var/log/nginx/nutriaidiary-api-error.log;
+    client_max_body_size 25m;
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Origin $http_origin;
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+    }
+}

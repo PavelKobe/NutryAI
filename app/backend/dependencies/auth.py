@@ -29,8 +29,8 @@ async def get_current_user(token: str = Depends(get_bearer_token)) -> UserRespon
     try:
         payload = decode_access_token(token)
     except AccessTokenError as exc:
-        # Log error type only, not the full exception which may contain sensitive token data
-        logger.warning("Token validation failed: %s", type(exc).__name__)
+        # exc.message is a safe short reason (expired / invalid / misconfigured), not the raw token
+        logger.warning("Token validation failed: %s", exc.message)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=exc.message)
 
     user_id = payload.get("sub")
@@ -47,17 +47,31 @@ async def get_current_user(token: str = Depends(get_bearer_token)) -> UserRespon
             user_hash = hashlib.sha256(str(user_id).encode()).hexdigest()[:8] if user_id else "unknown"
             logger.debug("Failed to parse last_login for user hash: %s", user_hash)
 
-    return UserResponse(
+    raw_active = payload.get("is_active", True)
+    if isinstance(raw_active, bool):
+        is_active = raw_active
+    elif isinstance(raw_active, str):
+        is_active = raw_active.lower() in ("1", "true", "yes")
+    else:
+        is_active = True
+
+    user = UserResponse(
         id=user_id,
         email=payload.get("email", ""),
         name=payload.get("name"),
         role=payload.get("role", "user"),
+        is_active=is_active,
         last_login=last_login,
     )
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
+    return user
 
 
 async def get_admin_user(current_user: UserResponse = Depends(get_current_user)) -> UserResponse:
     """Dependency to ensure current user has admin role."""
+    if not current_user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
     if current_user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return current_user

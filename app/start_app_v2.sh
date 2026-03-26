@@ -965,9 +965,13 @@ start_services_with_retry() {
             process_env_with_placeholders "$LOCAL_IP" "$BACKEND_PORT" "$FRONTEND_PORT" "$LOCAL_MODE"
         fi
 
-        # Start frontend service
-        log_info "Starting Frontend service...$FRONTEND_PORT"
-        $PACKAGE_MANAGER dev --host "0.0.0.0" --port $FRONTEND_PORT &
+        # Start frontend service (Next.js app/web)
+        log_info "Starting Frontend (Next.js) service...$FRONTEND_PORT"
+        if [ "$PACKAGE_MANAGER" = "pnpm" ]; then
+            pnpm exec next dev -H 0.0.0.0 -p "$FRONTEND_PORT" &
+        else
+            npx next dev -H 0.0.0.0 -p "$FRONTEND_PORT" &
+        fi
         FRONTEND_PID=$!
 
         # Wait for frontend to start
@@ -1148,7 +1152,7 @@ main() {
     # Get project root directory
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     BACKEND_DIR="$SCRIPT_DIR/backend"
-    FRONTEND_DIR="$SCRIPT_DIR/frontend"
+    FRONTEND_DIR="$SCRIPT_DIR/web"
     
     # Check if directories exist
     if [ ! -d "$BACKEND_DIR" ]; then

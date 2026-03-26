@@ -1,10 +1,15 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Inter } from 'next/font/google';
+import { Inter, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 
 const inter = Inter({ subsets: ['latin', 'cyrillic'], display: 'swap' });
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-space-grotesk',
+});
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://nutriaidiary.com';
 
@@ -39,8 +44,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="alternate icon" href="/favicon.ico" />
+        <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css"
+        />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} ${spaceGrotesk.variable}`}>
         <Providers>{children}</Providers>
       </body>
     </html>

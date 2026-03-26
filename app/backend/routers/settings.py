@@ -73,9 +73,8 @@ async def get_settings(current_user: UserResponse = Depends(get_admin_user)):
         # Define descriptions for configuration items
         backend_descriptions = {
             "DATABASE_URL": "Database connection string",
-            "STRIPE_SECRET_KEY": "Stripe secret key",
-            "STRIPE_SUCCESS_URL": "Payment success callback URL",
-            "STRIPE_CANCEL_URL": "Payment cancellation callback URL",
+            "YOOKASSA_SHOP_ID": "YooKassa shop id (Phase 2+)",
+            "YOOKASSA_SECRET_KEY": "YooKassa secret key (Phase 2+)",
             "ALLOWED_DOMAINS": "Allowed domains",
             "HOST": "Server host address",
             "PORT": "Server port",
@@ -85,6 +84,7 @@ async def get_settings(current_user: UserResponse = Depends(get_admin_user)):
             "JWT_EXPIRE_MINUTES": "JWT expiration time (minutes)",
             "ADMIN_USER_ID": "Admin user ID",
             "ADMIN_USER_EMAIL": "Admin user email",
+            "ADMIN_BOOTSTRAP_PASSWORD": "Dev only: set admin password on startup if empty (ENVIRONMENT=dev)",
         }
 
         frontend_descriptions = {"VITE_API_BASE_URL": "Base API URL", "VITE_FRONTEND_URL": "Frontend URL"}

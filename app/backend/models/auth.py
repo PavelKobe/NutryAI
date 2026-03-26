@@ -1,5 +1,5 @@
 from models.base import Base
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, text
 from sqlalchemy.sql import func
 
 
@@ -11,6 +11,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=True)
     name = Column(String(255), nullable=True)
     role = Column(String(50), default="user", nullable=False)  # user/admin
+    is_active = Column(Boolean, nullable=False, server_default=text("true"), default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
 

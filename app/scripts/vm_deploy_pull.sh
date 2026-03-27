@@ -75,6 +75,20 @@ git_pull() {
 echo "=== [1/2] git pull (repo: $REPO_ROOT, ветка: ${GIT_BRANCH:-текущая}) ==="
 git_pull
 echo "OK: репозиторий обновлён."
+
+# Git LFS pull для больших файлов (изображения, видео и т.д.)
+if command -v git-lfs >/dev/null 2>&1; then
+  echo "=== [1/2a] git lfs pull (большие файлы) ==="
+  if [[ "$(id -u)" -eq 0 ]]; then
+    sudo -u "$GIT_OWNER" git -C "$REPO_ROOT" lfs pull
+  else
+    git -C "$REPO_ROOT" lfs pull
+  fi
+  echo "OK: LFS файлы загружены."
+else
+  echo "Предупреждение: git-lfs не установлен, большие файлы могут не загрузиться."
+fi
+
 echo ""
 
 echo "=== [2/2] деплой (DEPLOY_MODE=$DEPLOY_MODE) ==="

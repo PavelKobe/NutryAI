@@ -10,6 +10,26 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Droplets, Plus, Minus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Helper to get auth token
+const getAuthToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('token');
+};
+
+// Axios instance with auth interceptor
+const api = axios.create({
+  baseURL: getAPIBaseURL(),
+  withCredentials: true,
+});
+
+api.interceptors.request.use((config) => {
+  const token = getAuthToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 interface WaterLogItem {
   id: number;
   user_id: string;
@@ -41,7 +61,7 @@ export default function WaterTracker() {
     queryKey: ['water-summary'],
     queryFn: async () => {
       try {
-        const res = await axios.get(`${getAPIBaseURL()}/api/v1/entities/water_logs/today`, { withCredentials: true });
+        const res = await api.get('/api/v1/entities/water_logs/today');
         return res.data as WaterSummary;
       } catch (error: any) {
         console.error('Error fetching water summary:', error);
@@ -57,7 +77,7 @@ export default function WaterTracker() {
     queryFn: async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const res = await axios.get(`${getAPIBaseURL()}/api/v1/entities/water_logs?limit=50`, { withCredentials: true });
+        const res = await api.get('/api/v1/entities/water_logs?limit=50');
         const allLogs = (res.data as any)?.items || [];
         // Filter for today
         const todayLogs = allLogs.filter((log: WaterLogItem) => {
@@ -76,9 +96,9 @@ export default function WaterTracker() {
   // Add water mutation
   const addWaterMutation = useMutation({
     mutationFn: async (amountMl: number) => {
-      const res = await axios.post(`${getAPIBaseURL()}/api/v1/entities/water_logs`, {
+      const res = await api.post('/api/v1/entities/water_logs', {
         amount_ml: amountMl,
-      }, { withCredentials: true });
+      });
       return res.data;
     },
     onSuccess: () => {
@@ -95,7 +115,7 @@ export default function WaterTracker() {
   // Delete water log mutation
   const deleteWaterMutation = useMutation({
     mutationFn: async (logId: number) => {
-      await axios.delete(`${getAPIBaseURL()}/api/v1/entities/water_logs/${logId}`, { withCredentials: true });
+      await api.delete(`/api/v1/entities/water_logs/${logId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['water-summary'] });
@@ -118,9 +138,9 @@ export default function WaterTracker() {
 
   if (summaryLoading) {
     return (
-      <Card className="w-full">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
+      <Card className="w-full bg-card border-border">
+        <CardHeader className="pb-2 border-b border-border">
+          <CardTitle className="text-lg flex items-center gap-2 text-foreground">
             <Droplets className="h-5 w-5 text-blue-500" />
             Вода
           </CardTitle>
@@ -138,14 +158,14 @@ export default function WaterTracker() {
   const percentage = Math.min(summary.percentage, 100);
 
   return (
-    <Card className="w-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center gap-2">
+    <Card className="w-full bg-card border-border">
+      <CardHeader className="pb-2 border-b border-border">
+        <CardTitle className="text-lg flex items-center gap-2 text-foreground">
           <Droplets className="h-5 w-5 text-blue-500" />
           Вода
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-4">
         {/* Progress Circle */}
         <div className="flex flex-col items-center justify-center py-2">
           <div className="relative w-24 h-24">
@@ -190,7 +210,7 @@ export default function WaterTracker() {
               size="sm"
               onClick={() => handleQuickAdd(amount)}
               disabled={addWaterMutation.isPending}
-              className="flex flex-col h-auto py-2"
+              className="flex flex-col h-auto py-2 border-green-500/50 hover:bg-green-500/20 hover:border-green-400 text-foreground"
             >
               <Plus className="h-3 w-3 mb-1" />
               <span>{amount} мл</span>
@@ -205,18 +225,18 @@ export default function WaterTracker() {
           </div>
         ) : logsData && logsData.length > 0 ? (
           <div className="space-y-2 mt-4">
-            <p className="text-sm font-medium">Сегодня:</p>
+            <p className="text-sm font-medium text-foreground">Сегодня:</p>
             <div className="max-h-32 overflow-y-auto space-y-1">
               {logsData.map((log: WaterLogItem) => (
                 <div
                   key={log.id}
-                  className="flex items-center justify-between text-sm bg-blue-50 dark:bg-blue-950 rounded px-2 py-1"
+                  className="flex items-center justify-between text-sm bg-blue-950/50 border border-blue-500/30 rounded px-3 py-2"
                 >
-                  <span>{log.amount_ml} мл</span>
+                  <span className="text-foreground">{log.amount_ml} мл</span>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                    className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-950/50"
                     onClick={() => deleteWaterMutation.mutate(log.id)}
                     disabled={deleteWaterMutation.isPending}
                   >

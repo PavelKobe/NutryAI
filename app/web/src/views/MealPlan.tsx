@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { client } from '@/lib/api';
 import { localDateKeyFromLoggedAt, localTodayKey } from '@/lib/date_local';
@@ -10,8 +10,27 @@ import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import MealPlanSkeleton from '@/components/skeletons/MealPlanSkeleton';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Sparkles, RefreshCw, ChefHat, Clock, Flame, Loader2, Bookmark, BookmarkCheck } from 'lucide-react';
+import {
+  Sparkles,
+  RefreshCw,
+  ChefHat,
+  Clock,
+  Flame,
+  Loader2,
+  Bookmark,
+  BookmarkCheck,
+  Pencil,
+} from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface MealPlanData {
   id?: number;
@@ -78,6 +97,151 @@ export default function MealPlan() {
   const [savedRecipes, setSavedRecipes] = useState<Set<string>>(new Set());
   const [planLoggedMeals, setPlanLoggedMeals] = useState<Record<string, number>>({});
   const [savingCheckbox, setSavingCheckbox] = useState<string | null>(null);
+  const [activePlanId, setActivePlanId] = useState<number | null>(null);
+  const [mealEditorOpen, setMealEditorOpen] = useState(false);
+  const [editDayIndex, setEditDayIndex] = useState(0);
+  const [editMealIndex, setEditMealIndex] = useState(0);
+  const [editName, setEditName] = useState('');
+  const [editCalories, setEditCalories] = useState('');
+  const [editProtein, setEditProtein] = useState('');
+  const [editFat, setEditFat] = useState('');
+  const [editCarbs, setEditCarbs] = useState('');
+  const [editCookingTime, setEditCookingTime] = useState('');
+
+  const persistPlan = useCallback(async (nextPlan: DayPlan[]): Promise<boolean> => {
+    if (activePlanId == null) return false;
+    try {
+      await client.entities.meal_plans.update({
+        id: String(activePlanId),
+        data: { plan_data: JSON.stringify(nextPlan) },
+      });
+      return true;
+    } catch {
+      toast.error('Не удалось сохранить план');
+      return false;
+    }
+  }, [activePlanId]);
+
+  const loadPlan = useCallback(async () => {
+    try {
+      const [planOutcome, logsOutcome] = await Promise.allSettled([
+        client.entities.meal_plans.query({
+          query: { status: 'active' },
+          sort: '-created_at',
+          limit: 1,
+        }),
+        client.entities.meal_logs.query({ sort: '-created_at', limit: 50 }),
+      ]);
+
+      const planRes =
+        planOutcome.status === 'fulfilled' ? planOutcome.value : null;
+      const logsRes =
+        logsOutcome.status === 'fulfilled' ? logsOutcome.value : null;
+
+      if (planOutcome.status === 'rejected') {
+        console.error('meal_plans query failed:', planOutcome.reason);
+        toast.error('Не удалось загрузить план питания (ошибка сервера)');
+      }
+      if (logsOutcome.status === 'rejected') {
+        console.error('meal_logs query failed:', logsOutcome.reason);
+      }
+
+      const rawPlans = planRes?.data?.items ?? planRes?.data;
+      const plans: MealPlanData[] = Array.isArray(rawPlans) ? rawPlans : [];
+      if (plans.length > 0 && plans[0].plan_data) {
+        try {
+          const parsed: DayPlan[] = JSON.parse(plans[0].plan_data);
+          setPlan(parsed);
+          setWeekStart(plans[0].week_start || null);
+          const pid = plans[0].id;
+          setActivePlanId(typeof pid === 'number' ? pid : null);
+
+          const today = localTodayKey();
+          const rawItems = logsRes?.data?.items ?? logsRes?.data ?? [];
+          const itemsList = Array.isArray(rawItems) ? rawItems : [];
+          const todayLogs: { id: number; meal_type: string; food_name: string; logged_at: string }[] =
+            itemsList.filter(
+              (l: { logged_at?: string }) => localDateKeyFromLoggedAt(l.logged_at) === today,
+            );
+
+          const logMap: Record<string, number> = {};
+          for (const log of todayLogs) {
+            logMap[`${log.meal_type}:${log.food_name}`] = log.id;
+          }
+
+          const restored: Record<string, number> = {};
+          (parsed[todayPlanDayIndex]?.meals || []).forEach((meal, i) => {
+            const id = logMap[`${meal.type}:${meal.name}`];
+            if (id) restored[`${todayPlanDayIndex}-${i}`] = id;
+          });
+          setPlanLoggedMeals(restored);
+        } catch {
+          setPlan(null);
+          setActivePlanId(null);
+          setPlanLoggedMeals({});
+        }
+      } else {
+        setPlan(null);
+        setWeekStart(null);
+        setActivePlanId(null);
+        setPlanLoggedMeals({});
+      }
+    } catch (err) {
+      console.error('Load plan error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [todayPlanDayIndex]);
+
+  const pathname = usePathname();
+  useEffect(() => {
+    if (pathname !== '/meal-plan') return;
+    void loadPlan();
+  }, [pathname, loadPlan]);
+
+  const openMealEditor = (dayIndex: number, mealIndex: number) => {
+    const meal = plan?.[dayIndex]?.meals?.[mealIndex];
+    if (!meal) return;
+    setEditDayIndex(dayIndex);
+    setEditMealIndex(mealIndex);
+    setEditName(meal.name);
+    setEditCalories(String(meal.calories ?? ''));
+    setEditProtein(String(meal.protein ?? ''));
+    setEditFat(String(meal.fat ?? ''));
+    setEditCarbs(String(meal.carbs ?? ''));
+    setEditCookingTime(String(meal.cooking_time ?? ''));
+    setMealEditorOpen(true);
+  };
+
+  const saveEditedMeal = async () => {
+    if (!plan) return;
+    const name = editName.trim();
+    if (!name) {
+      toast.error('Укажите название блюда');
+      return;
+    }
+    const calories = Number(editCalories) || 0;
+    const protein = Number(editProtein) || 0;
+    const fat = Number(editFat) || 0;
+    const carbs = Number(editCarbs) || 0;
+    const cooking_time = Number(editCookingTime) || 0;
+
+    const updatedPlan = plan.map((day, di) => {
+      if (di !== editDayIndex) return day;
+      return {
+        ...day,
+        meals: day.meals.map((m, mi) =>
+          mi === editMealIndex
+            ? { ...m, name, calories, protein, fat, carbs, cooking_time }
+            : m,
+        ),
+      };
+    });
+    setPlan(updatedPlan);
+    setMealEditorOpen(false);
+    const ok = await persistPlan(updatedPlan);
+    if (ok) toast.success('Блюдо обновлено');
+  };
 
   const toggleMealLogged = async (dayIndex: number, mealIndex: number, checked: boolean) => {
     const meal = plan?.[dayIndex]?.meals?.[mealIndex];
@@ -162,71 +326,6 @@ export default function MealPlan() {
     }
   };
 
-  useEffect(() => {
-    loadPlan();
-  }, []);
-
-  const loadPlan = async () => {
-    try {
-      const [planOutcome, logsOutcome] = await Promise.allSettled([
-        client.entities.meal_plans.query({
-          query: { status: 'active' },
-          sort: '-created_at',
-          limit: 1,
-        }),
-        client.entities.meal_logs.query({ sort: '-created_at', limit: 50 }),
-      ]);
-
-      const planRes =
-        planOutcome.status === 'fulfilled' ? planOutcome.value : null;
-      const logsRes =
-        logsOutcome.status === 'fulfilled' ? logsOutcome.value : null;
-
-      if (planOutcome.status === 'rejected') {
-        console.error('meal_plans query failed:', planOutcome.reason);
-        toast.error('Не удалось загрузить план питания (ошибка сервера)');
-      }
-      if (logsOutcome.status === 'rejected') {
-        console.error('meal_logs query failed:', logsOutcome.reason);
-      }
-
-      const plans: MealPlanData[] = planRes?.data?.items || [];
-      if (plans.length > 0 && plans[0].plan_data) {
-        try {
-          const parsed: DayPlan[] = JSON.parse(plans[0].plan_data);
-          setPlan(parsed);
-          setWeekStart(plans[0].week_start || null);
-
-          const today = localTodayKey();
-          const rawItems = logsRes?.data?.items ?? logsRes?.data ?? [];
-          const itemsList = Array.isArray(rawItems) ? rawItems : [];
-          const todayLogs: { id: number; meal_type: string; food_name: string; logged_at: string }[] =
-            itemsList.filter(
-              (l: { logged_at?: string }) => localDateKeyFromLoggedAt(l.logged_at) === today
-            );
-
-          const logMap: Record<string, number> = {};
-          for (const log of todayLogs) {
-            logMap[`${log.meal_type}:${log.food_name}`] = log.id;
-          }
-
-          const restored: Record<string, number> = {};
-          (parsed[todayPlanDayIndex]?.meals || []).forEach((meal, i) => {
-            const id = logMap[`${meal.type}:${meal.name}`];
-            if (id) restored[`${todayPlanDayIndex}-${i}`] = id;
-          });
-          setPlanLoggedMeals(restored);
-        } catch {
-          setPlan(null);
-        }
-      }
-    } catch (err) {
-      console.error('Load plan error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const generatePlan = async () => {
     setGenerating(true);
     try {
@@ -279,13 +378,18 @@ export default function MealPlan() {
             setPlan(parsed);
             setWeekStart(today);
 
-            await client.entities.meal_plans.create({
+            const createRes = await client.entities.meal_plans.create({
               data: {
                 plan_data: JSON.stringify(parsed),
                 week_start: today,
                 status: 'active',
               },
             });
+            const newId =
+              (createRes as { data?: { id?: number } })?.data?.id ??
+              (createRes as { data?: { data?: { id?: number } } })?.data?.data?.id;
+            if (typeof newId === 'number') setActivePlanId(newId);
+            await loadPlan();
             toast.success('План питания сгенерирован!');
           } catch {
             toast.error('Ошибка парсинга плана. Попробуйте ещё раз.');
@@ -318,9 +422,17 @@ export default function MealPlan() {
 
       const imageUrl = response?.data?.images?.[0];
       if (imageUrl && plan) {
-        const updatedPlan = [...plan];
-        updatedPlan[dayIndex].meals[mealIndex].image_url = imageUrl;
+        const updatedPlan = plan.map((day, di) => {
+          if (di !== dayIndex) return day;
+          return {
+            ...day,
+            meals: day.meals.map((m, mi) =>
+              mi === mealIndex ? { ...m, image_url: imageUrl } : m,
+            ),
+          };
+        });
         setPlan(updatedPlan);
+        await persistPlan(updatedPlan);
         toast.success('Изображение сгенерировано!');
       }
     } catch {
@@ -377,12 +489,21 @@ export default function MealPlan() {
             const recipe: MealRecipe = JSON.parse(jsonStr);
             
             // Обновляем план с рецептом
+            let updatedPlanForPersist: DayPlan[] | null = null;
             if (plan) {
-              const updatedPlan = [...plan];
-              updatedPlan[dayIndex].meals[mealIndex].recipe = recipe;
+              const updatedPlan = plan.map((day, di) => {
+                if (di !== dayIndex) return day;
+                return {
+                  ...day,
+                  meals: day.meals.map((m, mi) =>
+                    mi === mealIndex ? { ...m, recipe } : m,
+                  ),
+                };
+              });
+              updatedPlanForPersist = updatedPlan;
               setPlan(updatedPlan);
             }
-            
+
             // Сохраняем рецепт в БД
             await client.entities.recipes.create({
               data: {
@@ -401,6 +522,7 @@ export default function MealPlan() {
               },
             });
             setSavedRecipes((prev) => new Set(prev).add(key));
+            if (updatedPlanForPersist) await persistPlan(updatedPlanForPersist);
             toast.success(`Рецепт для «${meal.name}» создан и сохранён!`);
           } catch (parseErr) {
             console.error('Recipe parse error:', parseErr);
@@ -528,6 +650,14 @@ export default function MealPlan() {
                       </div>
                       <div className="flex items-center gap-2">
                         <button
+                          type="button"
+                          onClick={() => openMealEditor(selectedDay, i)}
+                          className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-500 hover:text-sky-400 transition-colors"
+                          title="Изменить блюдо"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
                           onClick={() => saveRecipe(selectedDay, i)}
                           disabled={savingRecipe === imgKey || savedRecipes.has(imgKey)}
                           className={`p-1.5 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 ${
@@ -575,6 +705,104 @@ export default function MealPlan() {
           </>
         )}
       </div>
+
+      <Dialog open={mealEditorOpen} onOpenChange={setMealEditorOpen}>
+        <DialogContent className="sm:max-w-md border-slate-800 bg-slate-950 text-slate-100">
+          <DialogHeader>
+            <DialogTitle>Редактировать блюдо</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="meal-edit-name">Название</Label>
+              <Input
+                id="meal-edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="bg-slate-900 border-slate-700"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="meal-edit-cal">Ккал</Label>
+                <Input
+                  id="meal-edit-cal"
+                  type="number"
+                  min={0}
+                  value={editCalories}
+                  onChange={(e) => setEditCalories(e.target.value)}
+                  className="bg-slate-900 border-slate-700"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="meal-edit-time">Время (мин)</Label>
+                <Input
+                  id="meal-edit-time"
+                  type="number"
+                  min={0}
+                  value={editCookingTime}
+                  onChange={(e) => setEditCookingTime(e.target.value)}
+                  className="bg-slate-900 border-slate-700"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="meal-edit-p">Белки (г)</Label>
+                <Input
+                  id="meal-edit-p"
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={editProtein}
+                  onChange={(e) => setEditProtein(e.target.value)}
+                  className="bg-slate-900 border-slate-700"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="meal-edit-f">Жиры (г)</Label>
+                <Input
+                  id="meal-edit-f"
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={editFat}
+                  onChange={(e) => setEditFat(e.target.value)}
+                  className="bg-slate-900 border-slate-700"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="meal-edit-c">Углеводы (г)</Label>
+                <Input
+                  id="meal-edit-c"
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={editCarbs}
+                  onChange={(e) => setEditCarbs(e.target.value)}
+                  className="bg-slate-900 border-slate-700"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-slate-600"
+              onClick={() => setMealEditorOpen(false)}
+            >
+              Отмена
+            </Button>
+            <Button
+              type="button"
+              className="bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => void saveEditedMeal()}
+            >
+              Сохранить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

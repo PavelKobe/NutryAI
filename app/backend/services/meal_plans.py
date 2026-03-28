@@ -1,7 +1,8 @@
 import logging
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.meal_plans import Meal_plans
@@ -19,9 +20,21 @@ class Meal_plansService:
     async def create(self, data: Dict[str, Any], user_id: Optional[str] = None) -> Optional[Meal_plans]:
         """Create a new meal_plans"""
         try:
+            payload = dict(data or {})
             if user_id:
-                data['user_id'] = user_id
-            obj = Meal_plans(**data)
+                payload['user_id'] = user_id
+            if payload.get('created_at') is None:
+                payload['created_at'] = datetime.now(timezone.utc)
+            if payload.get('status') == 'active' and user_id:
+                await self.db.execute(
+                    update(Meal_plans)
+                    .where(
+                        Meal_plans.user_id == user_id,
+                        Meal_plans.status == 'active',
+                    )
+                    .values(status='archived')
+                )
+            obj = Meal_plans(**payload)
             self.db.add(obj)
             await self.db.commit()
             await self.db.refresh(obj)
@@ -83,10 +96,11 @@ class Meal_plansService:
                 if sort.startswith('-'):
                     field_name = sort[1:]
                     if hasattr(Meal_plans, field_name):
-                        query = query.order_by(getattr(Meal_plans, field_name).desc())
+                        col = getattr(Meal_plans, field_name)
+                        query = query.order_by(col.desc(), Meal_plans.id.desc())
                 else:
                     if hasattr(Meal_plans, sort):
-                        query = query.order_by(getattr(Meal_plans, sort))
+                        query = query.order_by(getattr(Meal_plans, sort), Meal_plans.id.desc())
             else:
                 query = query.order_by(Meal_plans.id.desc())
 

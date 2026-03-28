@@ -26,3 +26,27 @@ class User_profiles(Base):
     target_carbs = Column(Integer, nullable=True)
     onboarding_completed = Column(Boolean, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Water tracking targets
+    target_water_ml = Column(Integer, default=2000, nullable=True)
+    
+    # Micronutrient targets
+    target_fiber_g = Column(Float, nullable=True)
+    target_sodium_mg = Column(Float, nullable=True)
+    target_sugar_g = Column(Float, nullable=True)
+    
+    # Vitamin targets
+    target_vitamin_a_mcg = Column(Float, nullable=True)
+    target_vitamin_c_mg = Column(Float, nullable=True)
+    target_vitamin_d_mcg = Column(Float, nullable=True)
+    target_vitamin_e_mg = Column(Float, nullable=True)
+    target_vitamin_k_mcg = Column(Float, nullable=True)
+    target_vitamin_b12_mcg = Column(Float, nullable=True)
+    target_folate_mcg = Column(Float, nullable=True)
+    
+    # Mineral targets
+    target_calcium_mg = Column(Float, nullable=True)
+    target_iron_mg = Column(Float, nullable=True)
+    target_magnesium_mg = Column(Float, nullable=True)
+    target_potassium_mg = Column(Float, nullable=True)
+    target_zinc_mg = Column(Float, nullable=True)

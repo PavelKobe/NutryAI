@@ -38,6 +38,41 @@ class Meal_logsData(BaseModel):
     photo_kept_until: Optional[datetime] = None
     logged_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
+    
+    # Micronutrients - General
+    fiber_g: Optional[float] = None
+    sugar_g: Optional[float] = None
+    sodium_mg: Optional[float] = None
+    cholesterol_mg: Optional[float] = None
+    saturated_fat_g: Optional[float] = None
+    trans_fat_g: Optional[float] = None
+    
+    # Vitamins
+    vitamin_a_mcg: Optional[float] = None
+    vitamin_c_mg: Optional[float] = None
+    vitamin_d_mcg: Optional[float] = None
+    vitamin_e_mg: Optional[float] = None
+    vitamin_k_mcg: Optional[float] = None
+    vitamin_b1_mg: Optional[float] = None
+    vitamin_b2_mg: Optional[float] = None
+    vitamin_b3_mg: Optional[float] = None
+    vitamin_b5_mg: Optional[float] = None
+    vitamin_b6_mg: Optional[float] = None
+    vitamin_b7_mcg: Optional[float] = None
+    vitamin_b9_mcg: Optional[float] = None
+    vitamin_b12_mcg: Optional[float] = None
+    
+    # Minerals
+    calcium_mg: Optional[float] = None
+    iron_mg: Optional[float] = None
+    magnesium_mg: Optional[float] = None
+    phosphorus_mg: Optional[float] = None
+    potassium_mg: Optional[float] = None
+    zinc_mg: Optional[float] = None
+    copper_mg: Optional[float] = None
+    manganese_mg: Optional[float] = None
+    selenium_mcg: Optional[float] = None
+    fluoride_mg: Optional[float] = None
 
 
 class Meal_logsUpdateData(BaseModel):
@@ -54,6 +89,41 @@ class Meal_logsUpdateData(BaseModel):
     photo_kept_until: Optional[datetime] = None
     logged_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
+    
+    # Micronutrients - General
+    fiber_g: Optional[float] = None
+    sugar_g: Optional[float] = None
+    sodium_mg: Optional[float] = None
+    cholesterol_mg: Optional[float] = None
+    saturated_fat_g: Optional[float] = None
+    trans_fat_g: Optional[float] = None
+    
+    # Vitamins
+    vitamin_a_mcg: Optional[float] = None
+    vitamin_c_mg: Optional[float] = None
+    vitamin_d_mcg: Optional[float] = None
+    vitamin_e_mg: Optional[float] = None
+    vitamin_k_mcg: Optional[float] = None
+    vitamin_b1_mg: Optional[float] = None
+    vitamin_b2_mg: Optional[float] = None
+    vitamin_b3_mg: Optional[float] = None
+    vitamin_b5_mg: Optional[float] = None
+    vitamin_b6_mg: Optional[float] = None
+    vitamin_b7_mcg: Optional[float] = None
+    vitamin_b9_mcg: Optional[float] = None
+    vitamin_b12_mcg: Optional[float] = None
+    
+    # Minerals
+    calcium_mg: Optional[float] = None
+    iron_mg: Optional[float] = None
+    magnesium_mg: Optional[float] = None
+    phosphorus_mg: Optional[float] = None
+    potassium_mg: Optional[float] = None
+    zinc_mg: Optional[float] = None
+    copper_mg: Optional[float] = None
+    manganese_mg: Optional[float] = None
+    selenium_mcg: Optional[float] = None
+    fluoride_mg: Optional[float] = None
 
 
 class Meal_logsResponse(BaseModel):
@@ -72,6 +142,41 @@ class Meal_logsResponse(BaseModel):
     photo_kept_until: Optional[datetime] = None
     logged_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
+    
+    # Micronutrients - General
+    fiber_g: Optional[float] = None
+    sugar_g: Optional[float] = None
+    sodium_mg: Optional[float] = None
+    cholesterol_mg: Optional[float] = None
+    saturated_fat_g: Optional[float] = None
+    trans_fat_g: Optional[float] = None
+    
+    # Vitamins
+    vitamin_a_mcg: Optional[float] = None
+    vitamin_c_mg: Optional[float] = None
+    vitamin_d_mcg: Optional[float] = None
+    vitamin_e_mg: Optional[float] = None
+    vitamin_k_mcg: Optional[float] = None
+    vitamin_b1_mg: Optional[float] = None
+    vitamin_b2_mg: Optional[float] = None
+    vitamin_b3_mg: Optional[float] = None
+    vitamin_b5_mg: Optional[float] = None
+    vitamin_b6_mg: Optional[float] = None
+    vitamin_b7_mcg: Optional[float] = None
+    vitamin_b9_mcg: Optional[float] = None
+    vitamin_b12_mcg: Optional[float] = None
+    
+    # Minerals
+    calcium_mg: Optional[float] = None
+    iron_mg: Optional[float] = None
+    magnesium_mg: Optional[float] = None
+    phosphorus_mg: Optional[float] = None
+    potassium_mg: Optional[float] = None
+    zinc_mg: Optional[float] = None
+    copper_mg: Optional[float] = None
+    manganese_mg: Optional[float] = None
+    selenium_mcg: Optional[float] = None
+    fluoride_mg: Optional[float] = None
 
     class Config:
         from_attributes = True

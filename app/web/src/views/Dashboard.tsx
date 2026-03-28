@@ -8,6 +8,8 @@ import AppLayout from '@/components/layout/AppLayout';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import DashboardSkeleton from '@/components/skeletons/DashboardSkeleton';
+import WaterTracker from '@/components/WaterTracker';
+import MicronutrientPanel from '@/components/MicronutrientPanel';
 import {
   Flame,
   Beef,
@@ -220,6 +222,12 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Water Tracker */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <WaterTracker />
+          <MicronutrientPanel />
         </div>
 
         {/* Quick Actions */}

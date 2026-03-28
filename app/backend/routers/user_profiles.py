@@ -40,6 +40,30 @@ class User_profilesData(BaseModel):
     target_carbs: int = None
     onboarding_completed: bool = None
     created_at: Optional[datetime] = None
+    
+    # Water tracking target
+    target_water_ml: Optional[int] = None
+    
+    # Micronutrient targets
+    target_fiber_g: Optional[float] = None
+    target_sodium_mg: Optional[float] = None
+    target_sugar_g: Optional[float] = None
+    
+    # Vitamin targets
+    target_vitamin_a_mcg: Optional[float] = None
+    target_vitamin_c_mg: Optional[float] = None
+    target_vitamin_d_mcg: Optional[float] = None
+    target_vitamin_e_mg: Optional[float] = None
+    target_vitamin_k_mcg: Optional[float] = None
+    target_vitamin_b12_mcg: Optional[float] = None
+    target_folate_mcg: Optional[float] = None
+    
+    # Mineral targets
+    target_calcium_mg: Optional[float] = None
+    target_iron_mg: Optional[float] = None
+    target_magnesium_mg: Optional[float] = None
+    target_potassium_mg: Optional[float] = None
+    target_zinc_mg: Optional[float] = None
 
 
 class User_profilesUpdateData(BaseModel):
@@ -62,6 +86,30 @@ class User_profilesUpdateData(BaseModel):
     target_carbs: Optional[int] = None
     onboarding_completed: Optional[bool] = None
     created_at: Optional[datetime] = None
+    
+    # Water tracking target
+    target_water_ml: Optional[int] = None
+    
+    # Micronutrient targets
+    target_fiber_g: Optional[float] = None
+    target_sodium_mg: Optional[float] = None
+    target_sugar_g: Optional[float] = None
+    
+    # Vitamin targets
+    target_vitamin_a_mcg: Optional[float] = None
+    target_vitamin_c_mg: Optional[float] = None
+    target_vitamin_d_mcg: Optional[float] = None
+    target_vitamin_e_mg: Optional[float] = None
+    target_vitamin_k_mcg: Optional[float] = None
+    target_vitamin_b12_mcg: Optional[float] = None
+    target_folate_mcg: Optional[float] = None
+    
+    # Mineral targets
+    target_calcium_mg: Optional[float] = None
+    target_iron_mg: Optional[float] = None
+    target_magnesium_mg: Optional[float] = None
+    target_potassium_mg: Optional[float] = None
+    target_zinc_mg: Optional[float] = None
 
 
 class User_profilesResponse(BaseModel):
@@ -86,6 +134,30 @@ class User_profilesResponse(BaseModel):
     target_carbs: Optional[int] = None
     onboarding_completed: Optional[bool] = None
     created_at: Optional[datetime] = None
+    
+    # Water tracking target
+    target_water_ml: Optional[int] = None
+    
+    # Micronutrient targets
+    target_fiber_g: Optional[float] = None
+    target_sodium_mg: Optional[float] = None
+    target_sugar_g: Optional[float] = None
+    
+    # Vitamin targets
+    target_vitamin_a_mcg: Optional[float] = None
+    target_vitamin_c_mg: Optional[float] = None
+    target_vitamin_d_mcg: Optional[float] = None
+    target_vitamin_e_mg: Optional[float] = None
+    target_vitamin_k_mcg: Optional[float] = None
+    target_vitamin_b12_mcg: Optional[float] = None
+    target_folate_mcg: Optional[float] = None
+    
+    # Mineral targets
+    target_calcium_mg: Optional[float] = None
+    target_iron_mg: Optional[float] = None
+    target_magnesium_mg: Optional[float] = None
+    target_potassium_mg: Optional[float] = None
+    target_zinc_mg: Optional[float] = None
 
     class Config:
         from_attributes = True

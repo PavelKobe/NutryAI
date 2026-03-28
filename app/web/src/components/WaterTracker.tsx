@@ -41,7 +41,7 @@ export default function WaterTracker() {
     queryKey: ['water-summary'],
     queryFn: async () => {
       try {
-        const res = await axios.get(`${getAPIBaseURL()}/api/v1/entities/water_logs/today`);
+        const res = await axios.get(`${getAPIBaseURL()}/api/v1/entities/water_logs/today`, { withCredentials: true });
         return res.data as WaterSummary;
       } catch (error: any) {
         console.error('Error fetching water summary:', error);
@@ -57,7 +57,7 @@ export default function WaterTracker() {
     queryFn: async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const res = await axios.get(`${getAPIBaseURL()}/api/v1/entities/water_logs?limit=50`);
+        const res = await axios.get(`${getAPIBaseURL()}/api/v1/entities/water_logs?limit=50`, { withCredentials: true });
         const allLogs = (res.data as any)?.items || [];
         // Filter for today
         const todayLogs = allLogs.filter((log: WaterLogItem) => {
@@ -78,7 +78,7 @@ export default function WaterTracker() {
     mutationFn: async (amountMl: number) => {
       const res = await axios.post(`${getAPIBaseURL()}/api/v1/entities/water_logs`, {
         amount_ml: amountMl,
-      });
+      }, { withCredentials: true });
       return res.data;
     },
     onSuccess: () => {
@@ -95,7 +95,7 @@ export default function WaterTracker() {
   // Delete water log mutation
   const deleteWaterMutation = useMutation({
     mutationFn: async (logId: number) => {
-      await axios.delete(`${getAPIBaseURL()}/api/v1/entities/water_logs/${logId}`);
+      await axios.delete(`${getAPIBaseURL()}/api/v1/entities/water_logs/${logId}`, { withCredentials: true });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['water-summary'] });

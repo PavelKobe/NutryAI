@@ -212,24 +212,24 @@ export default function MicronutrientPanel() {
     const isGood = percentage >= 80;
 
     return (
-      <div className="flex items-center justify-between py-2">
+      <div className="flex items-center justify-between py-3 px-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors border border-border/50">
         <div className="flex-1">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-medium">{nutrient.name}</span>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-foreground">{nutrient.name}</span>
             <span className="text-xs text-muted-foreground">
               {nutrient.value.toFixed(1)} / {nutrient.target} {nutrient.unit}
             </span>
           </div>
-          <Progress 
-            value={percentage} 
-            className={`h-2 ${isDeficient ? 'bg-red-100' : isGood ? 'bg-green-100' : 'bg-yellow-100'}`}
+          <Progress
+            value={percentage}
+            className={`h-2 ${isDeficient ? 'bg-red-900/50' : isGood ? 'bg-green-900/50' : 'bg-yellow-900/50'}`}
           />
         </div>
-        <div className="ml-2">
+        <div className="ml-3">
           {isGood ? (
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircle className="h-5 w-5 text-green-500" />
           ) : isDeficient ? (
-            <AlertCircle className="h-4 w-4 text-red-500" />
+            <AlertCircle className="h-5 w-5 text-red-500" />
           ) : null}
         </div>
       </div>
@@ -237,31 +237,31 @@ export default function MicronutrientPanel() {
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Микронутриенты</CardTitle>
+    <Card className="w-full bg-card border-border">
+      <CardHeader className="pb-2 border-b border-border">
+        <CardTitle className="text-lg text-foreground">Микронутриенты</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-4">
         <Tabs defaultValue="vitamins" className="w-full">
-          <TabsList className="w-full grid grid-cols-3 bg-muted p-1 rounded-lg">
-            <TabsTrigger value="vitamins" className="data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-md transition-all hover:bg-green-400 hover:text-white">Витамины</TabsTrigger>
-            <TabsTrigger value="minerals" className="data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-md transition-all hover:bg-green-400 hover:text-white">Минералы</TabsTrigger>
-            <TabsTrigger value="other" className="data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-md transition-all hover:bg-green-400 hover:text-white">Другое</TabsTrigger>
+          <TabsList className="w-full grid grid-cols-3 bg-background border border-border p-1 rounded-lg gap-1">
+            <TabsTrigger value="vitamins" className="data-[state=active]:bg-green-600 data-[state=active]:text-white rounded-md transition-all hover:bg-green-700 hover:text-white text-muted-foreground">Витамины</TabsTrigger>
+            <TabsTrigger value="minerals" className="data-[state=active]:bg-green-600 data-[state=active]:text-white rounded-md transition-all hover:bg-green-700 hover:text-white text-muted-foreground">Минералы</TabsTrigger>
+            <TabsTrigger value="other" className="data-[state=active]:bg-green-600 data-[state=active]:text-white rounded-md transition-all hover:bg-green-700 hover:text-white text-muted-foreground">Другое</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="vitamins" className="space-y-1 mt-4">
+          <TabsContent value="vitamins" className="space-y-3 mt-6">
             {vitamins.map(nutrient => (
               <NutrientCard key={nutrient.name} nutrient={nutrient} />
             ))}
           </TabsContent>
           
-          <TabsContent value="minerals" className="space-y-1 mt-4">
+          <TabsContent value="minerals" className="space-y-3 mt-6">
             {minerals.map(nutrient => (
               <NutrientCard key={nutrient.name} nutrient={nutrient} />
             ))}
           </TabsContent>
           
-          <TabsContent value="other" className="space-y-1 mt-4">
+          <TabsContent value="other" className="space-y-3 mt-6">
             {others.map(nutrient => (
               <NutrientCard key={nutrient.name} nutrient={nutrient} />
             ))}

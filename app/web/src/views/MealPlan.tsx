@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { client } from '@/lib/api';
+import { localDateKeyFromLoggedAt, localTodayKey } from '@/lib/date_local';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import MealPlanSkeleton from '@/components/skeletons/MealPlanSkeleton';
@@ -193,10 +194,12 @@ export default function MealPlan() {
           setPlan(parsed);
           setWeekStart(plans[0].week_start || null);
 
-          const today = new Date().toISOString().split('T')[0];
+          const today = localTodayKey();
+          const rawItems = logsRes?.data?.items ?? logsRes?.data ?? [];
+          const itemsList = Array.isArray(rawItems) ? rawItems : [];
           const todayLogs: { id: number; meal_type: string; food_name: string; logged_at: string }[] =
-            (logsRes?.data?.items ?? []).filter(
-              (l: { logged_at?: string }) => (l.logged_at || '').split('T')[0] === today
+            itemsList.filter(
+              (l: { logged_at?: string }) => localDateKeyFromLoggedAt(l.logged_at) === today
             );
 
           const logMap: Record<string, number> = {};
@@ -269,7 +272,7 @@ export default function MealPlan() {
             const jsonMatch = jsonStr.match(/\[[\s\S]*\]/);
             if (jsonMatch) jsonStr = jsonMatch[0];
             const parsed: DayPlan[] = JSON.parse(jsonStr);
-            const today = new Date().toISOString().split('T')[0];
+            const today = localTodayKey();
             setPlan(parsed);
             setWeekStart(today);
 

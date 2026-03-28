@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { client } from '@/lib/api';
+import { localDateKeyFromLoggedAt, localTodayKey } from '@/lib/date_local';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -85,9 +86,9 @@ export default function MicronutrientPanel() {
         const res = await client.entities.meal_logs.query({ limit: 100 });
         const raw = (res?.data as any)?.items ?? (res?.data as any) ?? [];
         const allLogs: MealLogItem[] = Array.isArray(raw) ? raw : [];
-        const today = new Date().toISOString().split('T')[0];
+        const today = localTodayKey();
         return allLogs.filter((log) => {
-          const logDate = (log as any).logged_at?.split('T')[0];
+          const logDate = localDateKeyFromLoggedAt((log as any).logged_at);
           return logDate === today;
         });
       } catch (error) {

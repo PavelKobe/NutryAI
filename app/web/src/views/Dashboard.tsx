@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { client } from '@/lib/api';
+import { localDateKeyFromLoggedAt, localTodayKey } from '@/lib/date_local';
 import AppLayout from '@/components/layout/AppLayout';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -72,8 +73,8 @@ export default function Dashboard() {
       }
       setProfile(profiles[0]);
 
-      // Load today's meal logs
-      const today = new Date().toISOString().split('T')[0];
+      // Load today's meal logs (локальный календарный день, не UTC)
+      const today = localTodayKey();
       const logsRes = await client.entities.meal_logs.query({
         sort: '-created_at',
         limit: 50,
@@ -81,7 +82,7 @@ export default function Dashboard() {
       const rawLogs = logsRes?.data?.items ?? logsRes?.data ?? [];
       const allLogs: MealLogItem[] = Array.isArray(rawLogs) ? rawLogs : [];
       const filtered = allLogs.filter((l) => {
-        const logDate = (l.logged_at || '').split('T')[0];
+        const logDate = localDateKeyFromLoggedAt(l.logged_at);
         return logDate === today;
       });
       setTodayLogs(filtered);

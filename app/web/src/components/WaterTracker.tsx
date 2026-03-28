@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { client } from '@/lib/api';
+import { localDateKeyFromLoggedAt, localTodayKey } from '@/lib/date_local';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Droplets, Plus, Minus, Loader2 } from 'lucide-react';
@@ -43,12 +44,12 @@ export default function WaterTracker() {
     queryKey: ['water-logs'],
     queryFn: async () => {
       try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = localTodayKey();
         const res = await client.entities.water_logs.query({ sort: '-created_at', limit: 50 });
         const raw = (res?.data as any)?.items ?? (res?.data as any) ?? [];
         const allLogs: WaterLogItem[] = Array.isArray(raw) ? raw : [];
         return allLogs.filter((log) => {
-          const logDate = (log.logged_at || '').split('T')[0];
+          const logDate = localDateKeyFromLoggedAt(log.logged_at);
           return logDate === today;
         });
       } catch (error: any) {
@@ -186,7 +187,7 @@ export default function WaterTracker() {
     target_ml: targetMl,
     percentage: targetMl > 0 ? (totalMl / targetMl) * 100 : 0,
     entries_count: safeLogs.length,
-    date: new Date().toISOString().split('T')[0],
+    date: localTodayKey(),
   };
   const percentage = Math.min(summary.percentage, 100);
 

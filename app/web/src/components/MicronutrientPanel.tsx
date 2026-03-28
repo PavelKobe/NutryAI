@@ -243,10 +243,10 @@ export default function MicronutrientPanel() {
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="vitamins" className="w-full">
-          <TabsList className="w-full grid grid-cols-3">
-            <TabsTrigger value="vitamins">Витамины</TabsTrigger>
-            <TabsTrigger value="minerals">Минералы</TabsTrigger>
-            <TabsTrigger value="other">Другое</TabsTrigger>
+          <TabsList className="w-full grid grid-cols-3 bg-muted p-1 rounded-lg">
+            <TabsTrigger value="vitamins" className="data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-md transition-all hover:bg-green-400 hover:text-white">Витамины</TabsTrigger>
+            <TabsTrigger value="minerals" className="data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-md transition-all hover:bg-green-400 hover:text-white">Минералы</TabsTrigger>
+            <TabsTrigger value="other" className="data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-md transition-all hover:bg-green-400 hover:text-white">Другое</TabsTrigger>
           </TabsList>
           
           <TabsContent value="vitamins" className="space-y-1 mt-4">

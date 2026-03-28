@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { client } from '@/lib/api';
+import axios from 'axios';
+import { getAPIBaseURL } from '@/lib/config';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,7 +41,7 @@ export default function WaterTracker() {
     queryKey: ['water-summary'],
     queryFn: async () => {
       try {
-        const res = await client.entities.water_logs.getToday();
+        const res = await axios.get(`${getAPIBaseURL()}/api/v1/water-logs/today`);
         return res.data as WaterSummary;
       } catch (error: any) {
         console.error('Error fetching water summary:', error);
@@ -56,9 +57,7 @@ export default function WaterTracker() {
     queryFn: async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const res = await client.entities.water_logs.query({
-          limit: 50,
-        });
+        const res = await axios.get(`${getAPIBaseURL()}/api/v1/water-logs?limit=50`);
         const allLogs = (res.data as any)?.items || [];
         // Filter for today
         const todayLogs = allLogs.filter((log: WaterLogItem) => {
@@ -77,7 +76,7 @@ export default function WaterTracker() {
   // Add water mutation
   const addWaterMutation = useMutation({
     mutationFn: async (amountMl: number) => {
-      const res = await client.entities.water_logs.create({
+      const res = await axios.post(`${getAPIBaseURL()}/api/v1/water-logs`, {
         amount_ml: amountMl,
       });
       return res.data;
@@ -96,7 +95,7 @@ export default function WaterTracker() {
   // Delete water log mutation
   const deleteWaterMutation = useMutation({
     mutationFn: async (logId: number) => {
-      await client.entities.water_logs.delete({ id: logId });
+      await axios.delete(`${getAPIBaseURL()}/api/v1/water-logs/${logId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['water-summary'] });

@@ -83,13 +83,13 @@ export default function MicronutrientPanel() {
     queryFn: async () => {
       try {
         const res = await client.entities.meal_logs.query({ limit: 100 });
-        const allLogs = (res.data as any)?.items || [];
+        const raw = (res?.data as any)?.items ?? (res?.data as any) ?? [];
+        const allLogs: MealLogItem[] = Array.isArray(raw) ? raw : [];
         const today = new Date().toISOString().split('T')[0];
-        const todayLogs = allLogs.filter((log: MealLogItem) => {
+        return allLogs.filter((log) => {
           const logDate = (log as any).logged_at?.split('T')[0];
           return logDate === today;
         });
-        return todayLogs;
       } catch (error) {
         console.error('Error fetching meal logs:', error);
         return [];
@@ -149,7 +149,9 @@ export default function MicronutrientPanel() {
     zinc_mg: 0,
   };
 
-  (logsData || []).forEach((log: MealLogItem) => {
+  const safeLogs = Array.isArray(logsData) ? logsData : [];
+
+  safeLogs.forEach((log: MealLogItem) => {
     totals.fiber_g += log.fiber_g || 0;
     totals.sugar_g += log.sugar_g || 0;
     totals.sodium_mg += log.sodium_mg || 0;

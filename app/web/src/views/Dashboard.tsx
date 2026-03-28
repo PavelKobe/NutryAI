@@ -64,7 +64,8 @@ export default function Dashboard() {
     try {
       // Load profile
       const profileRes = await client.entities.user_profiles.query({ limit: 1 });
-      const profiles = profileRes?.data?.items || [];
+      const rawProfiles = profileRes?.data?.items ?? profileRes?.data ?? [];
+      const profiles = Array.isArray(rawProfiles) ? rawProfiles : [];
       if (profiles.length === 0) {
         router.push('/onboarding');
         return;
@@ -77,7 +78,8 @@ export default function Dashboard() {
         sort: '-created_at',
         limit: 50,
       });
-      const allLogs: MealLogItem[] = logsRes?.data?.items || [];
+      const rawLogs = logsRes?.data?.items ?? logsRes?.data ?? [];
+      const allLogs: MealLogItem[] = Array.isArray(rawLogs) ? rawLogs : [];
       const filtered = allLogs.filter((l) => {
         const logDate = (l.logged_at || '').split('T')[0];
         return logDate === today;

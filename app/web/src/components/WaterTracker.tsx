@@ -45,13 +45,12 @@ export default function WaterTracker() {
       try {
         const today = new Date().toISOString().split('T')[0];
         const res = await client.entities.water_logs.query({ sort: '-created_at', limit: 50 });
-        const allLogs = (res?.data as { items?: WaterLogItem[] } | undefined)?.items || [];
-        // Filter for today
-        const todayLogs = allLogs.filter((log: WaterLogItem) => {
+        const raw = (res?.data as any)?.items ?? (res?.data as any) ?? [];
+        const allLogs: WaterLogItem[] = Array.isArray(raw) ? raw : [];
+        return allLogs.filter((log) => {
           const logDate = (log.logged_at || '').split('T')[0];
           return logDate === today;
         });
-        return todayLogs;
       } catch (error: any) {
         console.error('Error fetching water logs:', error);
         return [];
@@ -179,13 +178,14 @@ export default function WaterTracker() {
     );
   }
 
-  const totalMl = (logsData || []).reduce((sum, item) => sum + (item.amount_ml || 0), 0);
+  const safeLogs = Array.isArray(logsData) ? logsData : [];
+  const totalMl = safeLogs.reduce((sum, item) => sum + (item.amount_ml || 0), 0);
   const targetMl = waterTarget || 2000;
   const summary: WaterSummary = {
     total_ml: totalMl,
     target_ml: targetMl,
     percentage: targetMl > 0 ? (totalMl / targetMl) * 100 : 0,
-    entries_count: (logsData || []).length,
+    entries_count: safeLogs.length,
     date: new Date().toISOString().split('T')[0],
   };
   const percentage = Math.min(summary.percentage, 100);
@@ -256,11 +256,11 @@ export default function WaterTracker() {
           <div className="flex justify-center py-2">
             <Loader2 className="h-4 w-4 animate-spin" />
           </div>
-        ) : logsData && logsData.length > 0 ? (
+        ) : safeLogs.length > 0 ? (
           <div className="space-y-2 mt-4">
             <p className="text-sm font-medium text-white">Сегодня:</p>
             <div className="max-h-32 overflow-y-auto space-y-1">
-              {logsData.map((log: WaterLogItem) => (
+              {safeLogs.map((log: WaterLogItem) => (
                 <div
                   key={log.id}
                   className="flex items-center justify-between text-sm rounded-xl px-3 py-2 bg-slate-800/50 border border-slate-700/50"

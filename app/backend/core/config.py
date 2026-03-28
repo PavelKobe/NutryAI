@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import List
 from typing import Any
 
 from pydantic_settings import BaseSettings
@@ -17,6 +18,13 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     micronutrients_model: str = "openai/gpt-4o-mini"
+    cors_origins: str = (
+        "https://nutriaidiary.com,"
+        "https://www.nutriaidiary.com,"
+        "https://admin.nutriaidiary.com,"
+        "http://localhost:3000,"
+        "http://localhost:3001"
+    )
 
     # AWS Lambda Configuration
     is_lambda: bool = False
@@ -35,6 +43,10 @@ class Settings(BaseSettings):
             # Use localhost for external callbacks instead of 0.0.0.0
             display_host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
             return os.environ.get("PYTHON_BACKEND_URL", f"http://{display_host}:{self.port}")
+
+    @property
+    def parsed_cors_origins(self) -> List[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     class Config:
         case_sensitive = False

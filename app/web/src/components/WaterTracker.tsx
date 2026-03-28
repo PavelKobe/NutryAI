@@ -2,32 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
-import { getAPIBaseURL } from '@/lib/config';
+import { client } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Droplets, Plus, Minus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-
-// Helper to get auth token
-const getAuthToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('token');
-};
-
-// Axios instance with auth interceptor
-const api = axios.create({
-  baseURL: getAPIBaseURL(),
-  withCredentials: true,
-});
-
-api.interceptors.request.use((config) => {
-  const token = getAuthToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
 
 interface WaterLogItem {
   id: number;
@@ -45,6 +24,10 @@ interface WaterSummary {
   date: string;
 }
 
+interface UserProfile {
+  target_water_ml?: number;
+}
+
 const QUICK_ADD_AMOUNTS = [100, 250, 500];
 
 export default function WaterTracker() {
@@ -55,29 +38,14 @@ export default function WaterTracker() {
     setIsClient(true);
   }, []);
 
-  // Fetch today's water summary
-  const { data: summaryData, isLoading: summaryLoading, error: summaryError } = useQuery({
-    queryKey: ['water-summary'],
-    queryFn: async () => {
-      try {
-        const res = await api.get('/api/v1/entities/water_logs/today');
-        return res.data as WaterSummary;
-      } catch (error: any) {
-        console.error('Error fetching water summary:', error);
-        return null;
-      }
-    },
-    enabled: isClient,
-  });
-
   // Fetch today's entries
   const { data: logsData, isLoading: logsLoading } = useQuery({
     queryKey: ['water-logs'],
     queryFn: async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const res = await api.get('/api/v1/entities/water_logs?limit=50');
-        const allLogs = (res.data as any)?.items || [];
+        const res = await client.entities.water_logs.query({ sort: '-created_at', limit: 50 });
+        const allLogs = (res?.data as { items?: WaterLogItem[] } | undefined)?.items || [];
         // Filter for today
         const todayLogs = allLogs.filter((log: WaterLogItem) => {
           const logDate = (log.logged_at || '').split('T')[0];
@@ -92,31 +60,35 @@ export default function WaterTracker() {
     enabled: isClient,
   });
 
+  const { data: waterTarget, isLoading: targetLoading } = useQuery({
+    queryKey: ['water-target'],
+    queryFn: async () => {
+      try {
+        const res = await client.entities.user_profiles.query({ limit: 1 });
+        const profile = ((res?.data as { items?: UserProfile[] } | undefined)?.items || [])[0];
+        return profile?.target_water_ml || 2000;
+      } catch (error) {
+        console.error('Error fetching water target:', error);
+        return 2000;
+      }
+    },
+    enabled: isClient,
+  });
+
   // Add water mutation
   const addWaterMutation = useMutation({
     mutationFn: async (amountMl: number) => {
-      const res = await api.post('/api/v1/entities/water_logs', {
-        amount_ml: amountMl,
+      return client.entities.water_logs.create({
+        data: {
+          amount_ml: amountMl,
+          logged_at: new Date().toISOString(),
+        },
       });
-      return res.data;
     },
     onMutate: async (amountMl: number) => {
-      await queryClient.cancelQueries({ queryKey: ['water-summary'] });
       await queryClient.cancelQueries({ queryKey: ['water-logs'] });
 
-      const prevSummary = queryClient.getQueryData<WaterSummary | null>(['water-summary']);
       const prevLogs = queryClient.getQueryData<WaterLogItem[]>(['water-logs']);
-
-      if (prevSummary) {
-        const nextTotal = prevSummary.total_ml + amountMl;
-        const target = prevSummary.target_ml || 2000;
-        queryClient.setQueryData<WaterSummary>(['water-summary'], {
-          ...prevSummary,
-          total_ml: nextTotal,
-          entries_count: (prevSummary.entries_count || 0) + 1,
-          percentage: target > 0 ? (nextTotal / target) * 100 : 0,
-        });
-      }
 
       const optimisticLog: WaterLogItem = {
         id: -Date.now(),
@@ -130,17 +102,13 @@ export default function WaterTracker() {
         ...(prevLogs || []),
       ]);
 
-      return { prevSummary, prevLogs };
+      return { prevLogs };
     },
     onSuccess: (_data, amountMl) => {
-      queryClient.invalidateQueries({ queryKey: ['water-summary'] });
       queryClient.invalidateQueries({ queryKey: ['water-logs'] });
       toast.success(`Добавлено ${amountMl} мл воды`);
     },
     onError: (error: any, _variables, context) => {
-      if (context?.prevSummary !== undefined) {
-        queryClient.setQueryData(['water-summary'], context.prevSummary);
-      }
       if (context?.prevLogs !== undefined) {
         queryClient.setQueryData(['water-logs'], context.prevLogs);
       }
@@ -148,7 +116,6 @@ export default function WaterTracker() {
       console.error(error);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['water-summary'] });
       queryClient.invalidateQueries({ queryKey: ['water-logs'] });
     },
   });
@@ -156,43 +123,25 @@ export default function WaterTracker() {
   // Delete water log mutation
   const deleteWaterMutation = useMutation({
     mutationFn: async (logId: number) => {
-      await api.delete(`/api/v1/entities/water_logs/${logId}`);
+      await client.entities.water_logs.delete({ id: String(logId) });
     },
     onMutate: async (logId: number) => {
-      await queryClient.cancelQueries({ queryKey: ['water-summary'] });
       await queryClient.cancelQueries({ queryKey: ['water-logs'] });
 
-      const prevSummary = queryClient.getQueryData<WaterSummary | null>(['water-summary']);
       const prevLogs = queryClient.getQueryData<WaterLogItem[]>(['water-logs']) || [];
-      const removedLog = prevLogs.find((l) => l.id === logId);
 
       queryClient.setQueryData<WaterLogItem[]>(
         ['water-logs'],
         prevLogs.filter((l) => l.id !== logId)
       );
 
-      if (prevSummary && removedLog) {
-        const nextTotal = Math.max(0, prevSummary.total_ml - (removedLog.amount_ml || 0));
-        const target = prevSummary.target_ml || 2000;
-        queryClient.setQueryData<WaterSummary>(['water-summary'], {
-          ...prevSummary,
-          total_ml: nextTotal,
-          entries_count: Math.max(0, (prevSummary.entries_count || 0) - 1),
-          percentage: target > 0 ? (nextTotal / target) * 100 : 0,
-        });
-      }
-
-      return { prevSummary, prevLogs };
+      return { prevLogs };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['water-summary'] });
       queryClient.invalidateQueries({ queryKey: ['water-logs'] });
       toast.success('Запись удалена');
     },
     onError: (error: any, _variables, context) => {
-      if (context?.prevSummary !== undefined) {
-        queryClient.setQueryData(['water-summary'], context.prevSummary);
-      }
       if (context?.prevLogs !== undefined) {
         queryClient.setQueryData(['water-logs'], context.prevLogs);
       }
@@ -200,7 +149,6 @@ export default function WaterTracker() {
       console.error(error);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['water-summary'] });
       queryClient.invalidateQueries({ queryKey: ['water-logs'] });
     },
   });
@@ -213,7 +161,7 @@ export default function WaterTracker() {
     return null;
   }
 
-  if (summaryLoading) {
+  if (logsLoading || targetLoading) {
     return (
       <Card className="w-full rounded-2xl bg-slate-900/50 border-slate-800/50">
         <CardHeader className="pb-2 border-b border-slate-800/50">
@@ -231,7 +179,15 @@ export default function WaterTracker() {
     );
   }
 
-  const summary = summaryData || { total_ml: 0, target_ml: 2000, percentage: 0, entries_count: 0, date: '' };
+  const totalMl = (logsData || []).reduce((sum, item) => sum + (item.amount_ml || 0), 0);
+  const targetMl = waterTarget || 2000;
+  const summary: WaterSummary = {
+    total_ml: totalMl,
+    target_ml: targetMl,
+    percentage: targetMl > 0 ? (totalMl / targetMl) * 100 : 0,
+    entries_count: (logsData || []).length,
+    date: new Date().toISOString().split('T')[0],
+  };
   const percentage = Math.min(summary.percentage, 100);
 
   return (

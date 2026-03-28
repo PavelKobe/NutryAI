@@ -106,15 +106,7 @@ app = FastAPI(
 )
 
 # Browser origins allowed to call the API (frontend hosts only; not the API hostname).
-_cors_origins = [
-    "https://nutriaidiary.com",
-    "https://www.nutriaidiary.com",
-    "https://admin.nutriaidiary.com",
-    "http://nutriaidiary.com",
-    "http://www.nutriaidiary.com",
-    "http://localhost:3000",
-    "http://localhost:3001",
-]
+_cors_origins = list(settings.parsed_cors_origins)
 _extra = os.environ.get("CORS_EXTRA_ORIGINS", "")
 if _extra.strip():
     _cors_origins.extend(o.strip() for o in _extra.split(",") if o.strip())
@@ -123,6 +115,7 @@ if _extra.strip():
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
+    allow_origin_regex=r"^https?://([a-z0-9-]+\.)*nutriaidiary\.com$|^http://localhost:\d+$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

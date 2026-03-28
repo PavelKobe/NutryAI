@@ -254,19 +254,19 @@ export default function MicronutrientPanel() {
           <TabsList className="w-full grid grid-cols-3 gap-1 rounded-xl border border-slate-700/60 bg-slate-800/40 p-1">
             <TabsTrigger
               value="vitamins"
-              className="min-w-0 truncate rounded-lg px-2 py-1.5 text-xs sm:text-sm text-slate-300 transition-all hover:text-white hover:bg-indigo-500/20 data-[state=active]:bg-indigo-500 data-[state=active]:text-white"
+              className="min-w-0 overflow-visible whitespace-nowrap rounded-lg px-1.5 sm:px-2 py-1.5 text-[11px] sm:text-sm text-slate-300 transition-all hover:text-white hover:bg-indigo-500/20 data-[state=active]:bg-indigo-500 data-[state=active]:text-white"
             >
               Витамины
             </TabsTrigger>
             <TabsTrigger
               value="minerals"
-              className="min-w-0 truncate rounded-lg px-2 py-1.5 text-xs sm:text-sm text-slate-300 transition-all hover:text-white hover:bg-indigo-500/20 data-[state=active]:bg-indigo-500 data-[state=active]:text-white"
+              className="min-w-0 overflow-visible whitespace-nowrap rounded-lg px-1.5 sm:px-2 py-1.5 text-[11px] sm:text-sm text-slate-300 transition-all hover:text-white hover:bg-indigo-500/20 data-[state=active]:bg-indigo-500 data-[state=active]:text-white"
             >
               Минералы
             </TabsTrigger>
             <TabsTrigger
               value="other"
-              className="min-w-0 truncate rounded-lg px-2 py-1.5 text-xs sm:text-sm text-slate-300 transition-all hover:text-white hover:bg-indigo-500/20 data-[state=active]:bg-indigo-500 data-[state=active]:text-white"
+              className="min-w-0 overflow-visible whitespace-nowrap rounded-lg px-1.5 sm:px-2 py-1.5 text-[11px] sm:text-sm text-slate-300 transition-all hover:text-white hover:bg-indigo-500/20 data-[state=active]:bg-indigo-500 data-[state=active]:text-white"
             >
               Другое
             </TabsTrigger>

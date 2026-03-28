@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,17 +9,20 @@ from models.recipes import Recipes
 logger = logging.getLogger(__name__)
 
 
-# ------------------ Service Layer ------------------
 class RecipesService:
     """Service layer for Recipes operations"""
 
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(self, data: Dict[str, Any]) -> Optional[Recipes]:
+    async def create(self, data: Dict[str, Any], user_id: Optional[str] = None) -> Optional[Recipes]:
         """Create a new recipes"""
         try:
-            obj = Recipes(**data)
+            payload = dict(data or {})
+            payload.pop("user_id", None)
+            if user_id:
+                payload["user_id"] = user_id
+            obj = Recipes(**payload)
             self.db.add(obj)
             await self.db.commit()
             await self.db.refresh(obj)
@@ -30,10 +33,12 @@ class RecipesService:
             logger.error(f"Error creating recipes: {str(e)}")
             raise
 
-    async def get_by_id(self, obj_id: int) -> Optional[Recipes]:
-        """Get recipes by ID"""
+    async def get_by_id(self, obj_id: int, user_id: Optional[str] = None) -> Optional[Recipes]:
+        """Get recipes by ID (optionally scoped to owner)"""
         try:
             query = select(Recipes).where(Recipes.id == obj_id)
+            if user_id is not None:
+                query = query.where(Recipes.user_id == user_id)
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
@@ -41,28 +46,35 @@ class RecipesService:
             raise
 
     async def get_list(
-        self, 
-        skip: int = 0, 
-        limit: int = 20, 
+        self,
+        skip: int = 0,
+        limit: int = 20,
+        user_id: Optional[str] = None,
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Get paginated list of recipess"""
+        """Get paginated list of recipes; if user_id set, only that user's rows."""
         try:
             query = select(Recipes)
             count_query = select(func.count(Recipes.id))
-            
+
+            if user_id is not None:
+                query = query.where(Recipes.user_id == user_id)
+                count_query = count_query.where(Recipes.user_id == user_id)
+
             if query_dict:
                 for field, value in query_dict.items():
+                    if field == "user_id":
+                        continue
                     if hasattr(Recipes, field):
                         query = query.where(getattr(Recipes, field) == value)
                         count_query = count_query.where(getattr(Recipes, field) == value)
-            
+
             count_result = await self.db.execute(count_query)
             total = count_result.scalar()
 
             if sort:
-                if sort.startswith('-'):
+                if sort.startswith("-"):
                     field_name = sort[1:]
                     if hasattr(Recipes, field_name):
                         query = query.order_by(getattr(Recipes, field_name).desc())
@@ -85,14 +97,17 @@ class RecipesService:
             logger.error(f"Error fetching recipes list: {str(e)}")
             raise
 
-    async def update(self, obj_id: int, update_data: Dict[str, Any]) -> Optional[Recipes]:
-        """Update recipes"""
+    async def update(
+        self, obj_id: int, update_data: Dict[str, Any], user_id: Optional[str] = None
+    ) -> Optional[Recipes]:
+        """Update recipes (requires ownership when user_id provided)"""
         try:
-            obj = await self.get_by_id(obj_id)
+            obj = await self.get_by_id(obj_id, user_id=user_id)
             if not obj:
                 logger.warning(f"Recipes {obj_id} not found for update")
                 return None
-            for key, value in update_data.items():
+            clean = {k: v for k, v in update_data.items() if v is not None and k != "user_id"}
+            for key, value in clean.items():
                 if hasattr(obj, key):
                     setattr(obj, key, value)
 
@@ -105,10 +120,10 @@ class RecipesService:
             logger.error(f"Error updating recipes {obj_id}: {str(e)}")
             raise
 
-    async def delete(self, obj_id: int) -> bool:
-        """Delete recipes"""
+    async def delete(self, obj_id: int, user_id: Optional[str] = None) -> bool:
+        """Delete recipes (requires ownership when user_id provided)"""
         try:
-            obj = await self.get_by_id(obj_id)
+            obj = await self.get_by_id(obj_id, user_id=user_id)
             if not obj:
                 logger.warning(f"Recipes {obj_id} not found for deletion")
                 return False
@@ -137,7 +152,7 @@ class RecipesService:
     async def list_by_field(
         self, field_name: str, field_value: Any, skip: int = 0, limit: int = 20
     ) -> List[Recipes]:
-        """Get list of recipess filtered by field"""
+        """Get list of recipes filtered by field"""
         try:
             if not hasattr(Recipes, field_name):
                 raise ValueError(f"Field {field_name} does not exist on Recipes")
@@ -150,5 +165,5 @@ class RecipesService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(f"Error fetching recipess by {field_name}: {str(e)}")
+            logger.error(f"Error fetching recipes by {field_name}: {str(e)}")
             raise

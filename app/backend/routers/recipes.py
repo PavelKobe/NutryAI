@@ -9,6 +9,8 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from dependencies.auth import get_admin_user, get_current_user
+from schemas.auth import UserResponse
 from services.recipes import RecipesService
 
 # Set up logging
@@ -55,6 +57,7 @@ class RecipesUpdateData(BaseModel):
 class RecipesResponse(BaseModel):
     """Entity response schema"""
     id: int
+    user_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     cuisine: Optional[str] = None
@@ -110,9 +113,10 @@ async def query_recipess(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Query recipess with filtering, sorting, and pagination"""
+    """Query recipes for the authenticated user only."""
     logger.debug(f"Querying recipess: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
     
     service = RecipesService(db)
@@ -128,6 +132,7 @@ async def query_recipess(
         result = await service.get_list(
             skip=skip, 
             limit=limit,
+            user_id=str(current_user.id),
             query_dict=query_dict,
             sort=sort,
         )
@@ -147,14 +152,14 @@ async def query_recipess_all(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
+    _admin: UserResponse = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Query recipess with filtering, sorting, and pagination without user limitation
-    logger.debug(f"Querying recipess: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    """All recipes (admin only, no user filter)."""
+    logger.debug(f"Admin querying all recipess: query={query}, sort={sort}, skip={skip}, limit={limit}")
 
     service = RecipesService(db)
     try:
-        # Parse query JSON if provided
         query_dict = None
         if query:
             try:
@@ -165,8 +170,9 @@ async def query_recipess_all(
         result = await service.get_list(
             skip=skip,
             limit=limit,
+            user_id=None,
             query_dict=query_dict,
-            sort=sort
+            sort=sort,
         )
         logger.debug(f"Found {result['total']} recipess")
         return result
@@ -181,14 +187,15 @@ async def query_recipess_all(
 async def get_recipes(
     id: int,
     fields: str = Query(None, description="Comma-separated list of fields to return"),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get a single recipes by ID"""
+    """Get a single recipe by ID (owner only)."""
     logger.debug(f"Fetching recipes with id: {id}, fields={fields}")
     
     service = RecipesService(db)
     try:
-        result = await service.get_by_id(id)
+        result = await service.get_by_id(id, user_id=str(current_user.id))
         if not result:
             logger.warning(f"Recipes with id {id} not found")
             raise HTTPException(status_code=404, detail="Recipes not found")
@@ -204,14 +211,15 @@ async def get_recipes(
 @router.post("", response_model=RecipesResponse, status_code=201)
 async def create_recipes(
     data: RecipesData,
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new recipes"""
+    """Create a new recipe for the current user."""
     logger.debug(f"Creating new recipes with data: {data}")
     
     service = RecipesService(db)
     try:
-        result = await service.create(data.model_dump())
+        result = await service.create(data.model_dump(), user_id=str(current_user.id))
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create recipes")
         
@@ -228,9 +236,10 @@ async def create_recipes(
 @router.post("/batch", response_model=List[RecipesResponse], status_code=201)
 async def create_recipess_batch(
     request: RecipesBatchCreateRequest,
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create multiple recipess in a single request"""
+    """Create multiple recipes in a single request (all owned by current user)."""
     logger.debug(f"Batch creating {len(request.items)} recipess")
     
     service = RecipesService(db)
@@ -238,7 +247,7 @@ async def create_recipess_batch(
     
     try:
         for item_data in request.items:
-            result = await service.create(item_data.model_dump())
+            result = await service.create(item_data.model_dump(), user_id=str(current_user.id))
             if result:
                 results.append(result)
         
@@ -253,9 +262,10 @@ async def create_recipess_batch(
 @router.put("/batch", response_model=List[RecipesResponse])
 async def update_recipess_batch(
     request: RecipesBatchUpdateRequest,
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update multiple recipess in a single request"""
+    """Update multiple recipes (owner only)."""
     logger.debug(f"Batch updating {len(request.items)} recipess")
     
     service = RecipesService(db)
@@ -263,9 +273,8 @@ async def update_recipess_batch(
     
     try:
         for item in request.items:
-            # Only include non-None values for partial updates
             update_dict = {k: v for k, v in item.updates.model_dump().items() if v is not None}
-            result = await service.update(item.id, update_dict)
+            result = await service.update(item.id, update_dict, user_id=str(current_user.id))
             if result:
                 results.append(result)
         
@@ -281,16 +290,16 @@ async def update_recipess_batch(
 async def update_recipes(
     id: int,
     data: RecipesUpdateData,
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update an existing recipes"""
+    """Update an existing recipe (owner only)."""
     logger.debug(f"Updating recipes {id} with data: {data}")
 
     service = RecipesService(db)
     try:
-        # Only include non-None values for partial updates
         update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
-        result = await service.update(id, update_dict)
+        result = await service.update(id, update_dict, user_id=str(current_user.id))
         if not result:
             logger.warning(f"Recipes with id {id} not found for update")
             raise HTTPException(status_code=404, detail="Recipes not found")
@@ -310,9 +319,10 @@ async def update_recipes(
 @router.delete("/batch")
 async def delete_recipess_batch(
     request: RecipesBatchDeleteRequest,
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete multiple recipess by their IDs"""
+    """Delete multiple recipes by ID (owner only)."""
     logger.debug(f"Batch deleting {len(request.ids)} recipess")
     
     service = RecipesService(db)
@@ -320,7 +330,7 @@ async def delete_recipess_batch(
     
     try:
         for item_id in request.ids:
-            success = await service.delete(item_id)
+            success = await service.delete(item_id, user_id=str(current_user.id))
             if success:
                 deleted_count += 1
         
@@ -335,14 +345,15 @@ async def delete_recipess_batch(
 @router.delete("/{id}")
 async def delete_recipes(
     id: int,
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete a single recipes by ID"""
+    """Delete a single recipe by ID (owner only)."""
     logger.debug(f"Deleting recipes with id: {id}")
     
     service = RecipesService(db)
     try:
-        success = await service.delete(id)
+        success = await service.delete(id, user_id=str(current_user.id))
         if not success:
             logger.warning(f"Recipes with id {id} not found for deletion")
             raise HTTPException(status_code=404, detail="Recipes not found")

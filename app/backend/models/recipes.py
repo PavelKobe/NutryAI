@@ -7,6 +7,7 @@ class Recipes(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
+    user_id = Column(String, nullable=True, index=True)
     title = Column(String, nullable=True)
     description = Column(String, nullable=True)
     cuisine = Column(String, nullable=True)

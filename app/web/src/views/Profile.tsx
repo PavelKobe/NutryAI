@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { client } from '@/lib/api';
+import { mealLogsTodayQueryKey } from '@/lib/queries/meal_logs_today';
 import { calculateTargets, type UserParams } from '@/lib/nutrition-calc';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -224,7 +225,8 @@ export default function Profile() {
 
       // Invalidate all related queries for sync across pages
       queryClient.invalidateQueries({ queryKey: ['user_profiles'] });
-      queryClient.invalidateQueries({ queryKey: ['meal_logs_today'] });
+      void queryClient.invalidateQueries({ queryKey: [...mealLogsTodayQueryKey] });
+      void queryClient.refetchQueries({ queryKey: [...mealLogsTodayQueryKey] });
       queryClient.invalidateQueries({ queryKey: ['meal_logs_analytics'] });
       queryClient.invalidateQueries({ queryKey: ['weight_logs'] });
 

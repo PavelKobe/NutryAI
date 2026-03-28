@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { client } from '@/lib/api';
+import { fetchMealLogsToday, mealLogsTodayQueryKey } from '@/lib/queries/meal_logs_today';
 import {
   LayoutDashboard,
   CalendarDays,
@@ -31,9 +32,9 @@ const prefetchFns: Record<string, (qc: ReturnType<typeof useQueryClient>) => voi
       staleTime: 5 * 60 * 1000,
     });
     qc.prefetchQuery({
-      queryKey: ['meal_logs_today'],
-      queryFn: () => client.entities.meal_logs.query({ sort: '-created_at', limit: 50 }),
-      staleTime: 5 * 60 * 1000,
+      queryKey: [...mealLogsTodayQueryKey],
+      queryFn: fetchMealLogsToday,
+      staleTime: 60 * 1000,
     });
   },
   '/meal-plan': (qc) => {

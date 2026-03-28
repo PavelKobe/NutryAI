@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { client } from '@/lib/api';
-import { localDateKeyFromLoggedAt, localTodayKey } from '@/lib/date_local';
+import { fetchMealLogsToday, mealLogsTodayQueryKey } from '@/lib/queries/meal_logs_today';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -80,23 +80,18 @@ export default function MicronutrientPanel() {
 
   // Fetch today's meal logs
   const { data: logsData, isLoading: logsLoading } = useQuery({
-    queryKey: ['meal_logs_today'],
+    queryKey: mealLogsTodayQueryKey,
     queryFn: async () => {
       try {
-        const res = await client.entities.meal_logs.query({ limit: 100 });
-        const raw = (res?.data as any)?.items ?? (res?.data as any) ?? [];
-        const allLogs: MealLogItem[] = Array.isArray(raw) ? raw : [];
-        const today = localTodayKey();
-        return allLogs.filter((log) => {
-          const logDate = localDateKeyFromLoggedAt((log as any).logged_at);
-          return logDate === today;
-        });
+        return (await fetchMealLogsToday()) as MealLogItem[];
       } catch (error) {
         console.error('Error fetching meal logs:', error);
         return [];
       }
     },
     enabled: isClient,
+    staleTime: 60 * 1000,
+    refetchOnMount: 'always',
   });
 
   // Fetch user profile for targets

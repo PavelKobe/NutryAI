@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { client } from '@/lib/api';
 import { localDateKeyFromLoggedAt, localTodayKey } from '@/lib/date_local';
+import { mealLogsTodayQueryKey } from '@/lib/queries/meal_logs_today';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import MealPlanSkeleton from '@/components/skeletons/MealPlanSkeleton';
@@ -98,7 +99,8 @@ export default function MealPlan() {
         });
         const id = res?.data?.id;
         if (id) setPlanLoggedMeals((prev) => ({ ...prev, [key]: id }));
-        queryClient.invalidateQueries({ queryKey: ['meal_logs_today'] });
+        await queryClient.invalidateQueries({ queryKey: [...mealLogsTodayQueryKey] });
+        void queryClient.refetchQueries({ queryKey: [...mealLogsTodayQueryKey] });
         queryClient.invalidateQueries({ queryKey: ['meal_logs_analytics'] });
       } else {
         const id = planLoggedMeals[key];
@@ -109,7 +111,8 @@ export default function MealPlan() {
             delete next[key];
             return next;
           });
-          queryClient.invalidateQueries({ queryKey: ['meal_logs_today'] });
+          await queryClient.invalidateQueries({ queryKey: [...mealLogsTodayQueryKey] });
+          void queryClient.refetchQueries({ queryKey: [...mealLogsTodayQueryKey] });
           queryClient.invalidateQueries({ queryKey: ['meal_logs_analytics'] });
         }
       }

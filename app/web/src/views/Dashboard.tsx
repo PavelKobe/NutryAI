@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { client } from '@/lib/api';
 import { localDateKeyFromLoggedAt, localTodayKey } from '@/lib/date_local';
+import { mealLogsTodayQueryKey } from '@/lib/queries/meal_logs_today';
 import AppLayout from '@/components/layout/AppLayout';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -120,7 +121,8 @@ export default function Dashboard() {
     try {
       await client.entities.meal_logs.delete({ id: String(id) });
       setTodayLogs((prev) => prev.filter((l) => l.id !== id));
-      queryClient.invalidateQueries({ queryKey: ['meal_logs_today'] });
+      await queryClient.invalidateQueries({ queryKey: [...mealLogsTodayQueryKey] });
+      void queryClient.refetchQueries({ queryKey: [...mealLogsTodayQueryKey] });
       queryClient.invalidateQueries({ queryKey: ['meal_logs_analytics'] });
     } catch {
       toast.error('Не удалось удалить запись');

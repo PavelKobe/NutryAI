@@ -208,6 +208,10 @@ export default function MicronutrientPanel() {
   const minerals = nutrients.filter(n => n.category === 'mineral');
   const others = nutrients.filter(n => n.category === 'other');
 
+  const hasMeals = safeLogs.length > 0;
+  const totalMicroSum = Object.values(totals).reduce((s, v) => s + v, 0);
+  const microCalculated = totalMicroSum > 0;
+
   const NutrientCard = ({ nutrient }: { nutrient: NutrientItem }) => {
     const percentage = Math.min((nutrient.value / nutrient.target) * 100, 100);
     const isDeficient = percentage < 50;
@@ -247,9 +251,15 @@ export default function MicronutrientPanel() {
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-4">
-        {(logsData || []).length === 0 && (
+        {!hasMeals && (
           <div className="mb-4 rounded-xl border border-slate-700/50 bg-slate-800/40 p-3 text-sm text-slate-400">
             Добавьте приёмы пищи, чтобы увидеть расчёт по витаминам и минералам.
+          </div>
+        )}
+        {hasMeals && !microCalculated && (
+          <div className="mb-4 rounded-xl border border-amber-600/30 bg-amber-500/10 p-3 text-sm text-amber-300 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            Микронутриенты пока не рассчитаны. Данные появятся после обработки AI-сервисом.
           </div>
         )}
         <Tabs defaultValue="vitamins" className="w-full">

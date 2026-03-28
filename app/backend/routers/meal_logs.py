@@ -29,7 +29,14 @@ async def _enrich_with_micronutrients(data: dict) -> dict:
     payload = dict(data or {})
     food_name = (payload.get("food_name") or "").strip()
     if not food_name:
+        logger.debug("_enrich_with_micronutrients: no food_name, skipping")
         return payload
+
+    missing_before = sum(1 for f in MICRONUTRIENT_FIELDS if payload.get(f) is None)
+    logger.info(
+        "_enrich: food=%r, missing_micronutrient_fields=%d/%d",
+        food_name, missing_before, len(MICRONUTRIENT_FIELDS),
+    )
 
     estimated = await MicronutrientsService.estimate_for_meal(
         food_name=food_name,
@@ -39,10 +46,63 @@ async def _enrich_with_micronutrients(data: dict) -> dict:
         fat=payload.get("fat"),
         carbs=payload.get("carbs"),
     )
+
+    filled = 0
     for field in MICRONUTRIENT_FIELDS:
         if payload.get(field) is None:
-            payload[field] = estimated.get(field, 0.0)
+            val = estimated.get(field, 0.0)
+            payload[field] = val
+            if val > 0:
+                filled += 1
+
+    logger.info(
+        "_enrich DONE: food=%r, filled_nonzero=%d/%d",
+        food_name, filled, missing_before,
+    )
     return payload
+
+
+@router.get("/test-micronutrients")
+async def test_micronutrients(
+    food_name: str = Query(..., min_length=1),
+    calories: Optional[float] = Query(None),
+    protein: Optional[float] = Query(None),
+    fat: Optional[float] = Query(None),
+    carbs: Optional[float] = Query(None),
+    portion_grams: Optional[float] = Query(None),
+):
+    """Diagnostic endpoint: estimate micronutrients without saving."""
+    from services.aihub import AIHubService as _AIHub
+    from core.config import settings as _s
+
+    ai_configured = True
+    ai_error = None
+    try:
+        _AIHub()
+    except Exception as exc:
+        ai_configured = False
+        ai_error = str(exc)
+
+    estimated = await MicronutrientsService.estimate_for_meal(
+        food_name=food_name,
+        portion_grams=portion_grams,
+        calories=calories,
+        protein=protein,
+        fat=fat,
+        carbs=carbs,
+    )
+    nonzero = {k: v for k, v in estimated.items() if v > 0}
+
+    return {
+        "ai_configured": ai_configured,
+        "ai_error": ai_error,
+        "model": getattr(_s, "micronutrients_model", "openai/gpt-4o-mini"),
+        "food_name": food_name,
+        "nonzero_count": len(nonzero),
+        "total_fields": len(MICRONUTRIENT_FIELDS),
+        "nonzero_values": nonzero,
+        "all_values": estimated,
+    }
 
 
 # ---------- Pydantic Schemas ----------
@@ -342,17 +402,21 @@ async def create_meal_logs(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new meal_logs"""
-    logger.debug(f"Creating new meal_logs with data: {data}")
+    logger.info("create_meal_logs: food=%r, calories=%s", data.food_name, data.calories)
     
     service = Meal_logsService(db)
     try:
         create_payload = data.model_dump()
         create_payload = await _enrich_with_micronutrients(create_payload)
+
+        sample = {k: create_payload.get(k) for k in ("fiber_g", "vitamin_c_mg", "calcium_mg")}
+        logger.info("create_meal_logs: enriched sample=%s", sample)
+
         result = await service.create(create_payload, user_id=str(current_user.id))
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create meal_logs")
         
-        logger.info(f"Meal_logs created successfully with id: {result.id}")
+        logger.info("Meal_logs created id=%s, food=%r", result.id, result.food_name)
         return result
     except ValueError as e:
         logger.error(f"Validation error creating meal_logs: {str(e)}")

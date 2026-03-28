@@ -214,7 +214,8 @@ export default function MicronutrientPanel() {
   const microCalculated = totalMicroSum > 0;
 
   const NutrientCard = ({ nutrient }: { nutrient: NutrientItem }) => {
-    const percentage = Math.min((nutrient.value / nutrient.target) * 100, 100);
+    const safeTarget = nutrient.target > 0 ? nutrient.target : 1;
+    const percentage = Math.min((nutrient.value / safeTarget) * 100, 100);
     const isDeficient = percentage < 50;
     const isGood = percentage >= 80;
 
@@ -229,7 +230,8 @@ export default function MicronutrientPanel() {
           </div>
           <Progress
             value={percentage}
-            className={`h-2 ${isDeficient ? 'bg-rose-950/50' : isGood ? 'bg-emerald-950/50' : 'bg-amber-950/50'}`}
+            className={`h-2.5 ${isDeficient ? 'bg-rose-950/60' : isGood ? 'bg-emerald-950/50' : 'bg-amber-950/50'}`}
+            indicatorClassName="bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.35)]"
           />
         </div>
         <div className="ml-3">

@@ -60,8 +60,10 @@ export default function Dashboard() {
   const [aiInsight, setAiInsight] = useState('');
   const [insightLoading, setInsightLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
+    setLoadError(null);
     try {
       // Load profile
       const profileRes = await client.entities.user_profiles.query({ limit: 1 });
@@ -88,6 +90,9 @@ export default function Dashboard() {
       setTodayLogs(filtered);
     } catch (err) {
       console.error('Dashboard load error:', err);
+      setLoadError(
+        err instanceof Error ? err.message : 'Не удалось загрузить данные. Проверьте сеть и авторизацию.'
+      );
     } finally {
       setLoading(false);
     }
@@ -167,7 +172,26 @@ export default function Dashboard() {
     );
   }
 
-  if (!profile) return null;
+  if (!profile) {
+    if (loadError) {
+      return (
+        <AppLayout title="Дашборд">
+          <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-6 text-center space-y-4">
+            <p className="text-rose-200 text-sm">{loadError}</p>
+            <Button variant="outline" onClick={() => { setLoading(true); loadData(); }}>
+              Повторить
+            </Button>
+          </div>
+        </AppLayout>
+      );
+    }
+    return (
+      <AppLayout title="Дашборд">
+        <DashboardSkeleton />
+        <p className="mt-4 text-center text-sm text-slate-400">Перенаправление…</p>
+      </AppLayout>
+    );
+  }
 
   const calPercent = getPercent(totals.calories, profile.target_calories);
 

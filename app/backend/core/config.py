@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     # Server
     host: str = "0.0.0.0"
     port: int = 8000
+    micronutrients_model: str = "openai/gpt-4o-mini"
 
     # AWS Lambda Configuration
     is_lambda: bool = False

@@ -6,7 +6,7 @@ import { client } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, Sparkles } from 'lucide-react';
 
 interface MealLogItem {
   id: number;
@@ -79,7 +79,7 @@ export default function MicronutrientPanel() {
 
   // Fetch today's meal logs
   const { data: logsData, isLoading: logsLoading } = useQuery({
-    queryKey: ['meal-logs-today'],
+    queryKey: ['meal_logs_today'],
     queryFn: async () => {
       try {
         const res = await client.entities.meal_logs.query({ limit: 100 });
@@ -119,9 +119,9 @@ export default function MicronutrientPanel() {
 
   if (logsLoading) {
     return (
-      <Card className="w-full">
+      <Card className="w-full rounded-2xl bg-slate-900/50 border-slate-800/50">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Микронутриенты</CardTitle>
+          <CardTitle className="text-lg text-white">Микронутриенты</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-4">
@@ -212,17 +212,17 @@ export default function MicronutrientPanel() {
     const isGood = percentage >= 80;
 
     return (
-      <div className="flex items-center justify-between py-3 px-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors border border-border/50">
+      <div className="flex items-center justify-between py-3 px-3 rounded-xl bg-slate-800/40 hover:bg-slate-800/70 transition-all border border-slate-700/40">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-foreground">{nutrient.name}</span>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-sm font-medium text-slate-100">{nutrient.name}</span>
+            <span className="text-xs text-slate-400 ml-2 text-right">
               {nutrient.value.toFixed(1)} / {nutrient.target} {nutrient.unit}
             </span>
           </div>
           <Progress
             value={percentage}
-            className={`h-2 ${isDeficient ? 'bg-red-900/50' : isGood ? 'bg-green-900/50' : 'bg-yellow-900/50'}`}
+            className={`h-2 ${isDeficient ? 'bg-rose-950/50' : isGood ? 'bg-emerald-950/50' : 'bg-amber-950/50'}`}
           />
         </div>
         <div className="ml-3">
@@ -237,31 +237,54 @@ export default function MicronutrientPanel() {
   };
 
   return (
-    <Card className="w-full bg-card border-border">
-      <CardHeader className="pb-2 border-b border-border">
-        <CardTitle className="text-lg text-foreground">Микронутриенты</CardTitle>
+    <Card className="w-full rounded-2xl bg-slate-900/50 border-slate-800/50 transition-all hover:border-indigo-500/30">
+      <CardHeader className="pb-2 border-b border-slate-800/50">
+        <CardTitle className="text-lg text-white flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-indigo-400" />
+          Микронутриенты
+        </CardTitle>
       </CardHeader>
       <CardContent className="pt-4">
+        {(logsData || []).length === 0 && (
+          <div className="mb-4 rounded-xl border border-slate-700/50 bg-slate-800/40 p-3 text-sm text-slate-400">
+            Добавьте приёмы пищи, чтобы увидеть расчёт по витаминам и минералам.
+          </div>
+        )}
         <Tabs defaultValue="vitamins" className="w-full">
-          <TabsList className="w-full grid grid-cols-3 bg-background border border-border p-1 rounded-lg gap-1">
-            <TabsTrigger value="vitamins" className="data-[state=active]:bg-green-600 data-[state=active]:text-white rounded-md transition-all hover:bg-green-700 hover:text-white text-muted-foreground">Витамины</TabsTrigger>
-            <TabsTrigger value="minerals" className="data-[state=active]:bg-green-600 data-[state=active]:text-white rounded-md transition-all hover:bg-green-700 hover:text-white text-muted-foreground">Минералы</TabsTrigger>
-            <TabsTrigger value="other" className="data-[state=active]:bg-green-600 data-[state=active]:text-white rounded-md transition-all hover:bg-green-700 hover:text-white text-muted-foreground">Другое</TabsTrigger>
+          <TabsList className="w-full grid grid-cols-3 gap-1 rounded-xl border border-slate-700/60 bg-slate-800/40 p-1">
+            <TabsTrigger
+              value="vitamins"
+              className="min-w-0 truncate rounded-lg px-2 py-1.5 text-xs sm:text-sm text-slate-300 transition-all hover:text-white hover:bg-indigo-500/20 data-[state=active]:bg-indigo-500 data-[state=active]:text-white"
+            >
+              Витамины
+            </TabsTrigger>
+            <TabsTrigger
+              value="minerals"
+              className="min-w-0 truncate rounded-lg px-2 py-1.5 text-xs sm:text-sm text-slate-300 transition-all hover:text-white hover:bg-indigo-500/20 data-[state=active]:bg-indigo-500 data-[state=active]:text-white"
+            >
+              Минералы
+            </TabsTrigger>
+            <TabsTrigger
+              value="other"
+              className="min-w-0 truncate rounded-lg px-2 py-1.5 text-xs sm:text-sm text-slate-300 transition-all hover:text-white hover:bg-indigo-500/20 data-[state=active]:bg-indigo-500 data-[state=active]:text-white"
+            >
+              Другое
+            </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="vitamins" className="space-y-3 mt-6">
+          <TabsContent value="vitamins" className="space-y-3 mt-4">
             {vitamins.map(nutrient => (
               <NutrientCard key={nutrient.name} nutrient={nutrient} />
             ))}
           </TabsContent>
           
-          <TabsContent value="minerals" className="space-y-3 mt-6">
+          <TabsContent value="minerals" className="space-y-3 mt-4">
             {minerals.map(nutrient => (
               <NutrientCard key={nutrient.name} nutrient={nutrient} />
             ))}
           </TabsContent>
           
-          <TabsContent value="other" className="space-y-3 mt-6">
+          <TabsContent value="other" className="space-y-3 mt-4">
             {others.map(nutrient => (
               <NutrientCard key={nutrient.name} nutrient={nutrient} />
             ))}

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from models.meal_logs import Meal_logs
 from services.meal_logs import Meal_logsService
+from services.micronutrients import MICRONUTRIENT_FIELDS, MicronutrientsService
 from services.storage import StorageService
 from dependencies.auth import get_current_user, get_admin_user
 from schemas.auth import UserResponse
@@ -21,6 +22,27 @@ from schemas.storage import ObjectRequest
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/entities/meal_logs", tags=["meal_logs"])
+
+
+async def _enrich_with_micronutrients(data: dict) -> dict:
+    """Fill micronutrients via AI when values are missing."""
+    payload = dict(data or {})
+    food_name = (payload.get("food_name") or "").strip()
+    if not food_name:
+        return payload
+
+    estimated = await MicronutrientsService.estimate_for_meal(
+        food_name=food_name,
+        portion_grams=payload.get("portion_grams"),
+        calories=payload.get("calories"),
+        protein=payload.get("protein"),
+        fat=payload.get("fat"),
+        carbs=payload.get("carbs"),
+    )
+    for field in MICRONUTRIENT_FIELDS:
+        if payload.get(field) is None:
+            payload[field] = estimated.get(field, 0.0)
+    return payload
 
 
 # ---------- Pydantic Schemas ----------
@@ -324,7 +346,9 @@ async def create_meal_logs(
     
     service = Meal_logsService(db)
     try:
-        result = await service.create(data.model_dump(), user_id=str(current_user.id))
+        create_payload = data.model_dump()
+        create_payload = await _enrich_with_micronutrients(create_payload)
+        result = await service.create(create_payload, user_id=str(current_user.id))
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create meal_logs")
         
@@ -404,8 +428,27 @@ async def update_meal_logs(
 
     service = Meal_logsService(db)
     try:
+        existing = await service.get_by_id(id, user_id=str(current_user.id))
+        if not existing:
+            logger.warning(f"Meal_logs with id {id} not found for update")
+            raise HTTPException(status_code=404, detail="Meal_logs not found")
+
         # Only include non-None values for partial updates
         update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
+        merged_payload = {
+            "food_name": update_dict.get("food_name", existing.food_name),
+            "portion_grams": update_dict.get("portion_grams", existing.portion_grams),
+            "calories": update_dict.get("calories", existing.calories),
+            "protein": update_dict.get("protein", existing.protein),
+            "fat": update_dict.get("fat", existing.fat),
+            "carbs": update_dict.get("carbs", existing.carbs),
+            **{field: update_dict.get(field) for field in MICRONUTRIENT_FIELDS},
+        }
+        enriched_payload = await _enrich_with_micronutrients(merged_payload)
+        for field in MICRONUTRIENT_FIELDS:
+            if update_dict.get(field) is None:
+                update_dict[field] = enriched_payload.get(field, 0.0)
+
         result = await service.update(id, update_dict, user_id=str(current_user.id))
         if not result:
             logger.warning(f"Meal_logs with id {id} not found for update")

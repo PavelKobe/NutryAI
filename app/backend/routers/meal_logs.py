@@ -71,38 +71,72 @@ async def test_micronutrients(
     carbs: Optional[float] = Query(None),
     portion_grams: Optional[float] = Query(None),
 ):
-    """Diagnostic endpoint: estimate micronutrients without saving."""
+    """Diagnostic endpoint: raw AI call without silent error swallowing."""
+    import traceback
     from services.aihub import AIHubService as _AIHub
     from core.config import settings as _s
+    from schemas.aihub import ChatMessage as _CM, GenTxtRequest as _Req
 
-    ai_configured = True
-    ai_error = None
-    try:
-        _AIHub()
-    except Exception as exc:
-        ai_configured = False
-        ai_error = str(exc)
-
-    estimated = await MicronutrientsService.estimate_for_meal(
-        food_name=food_name,
-        portion_grams=portion_grams,
-        calories=calories,
-        protein=protein,
-        fat=fat,
-        carbs=carbs,
-    )
-    nonzero = {k: v for k, v in estimated.items() if v > 0}
-
-    return {
-        "ai_configured": ai_configured,
-        "ai_error": ai_error,
+    result: dict = {
+        "ai_configured": False,
+        "ai_error": None,
         "model": getattr(_s, "micronutrients_model", "openai/gpt-4o-mini"),
         "food_name": food_name,
-        "nonzero_count": len(nonzero),
+        "raw_ai_response": None,
+        "parse_error": None,
+        "nonzero_count": 0,
         "total_fields": len(MICRONUTRIENT_FIELDS),
-        "nonzero_values": nonzero,
-        "all_values": estimated,
+        "nonzero_values": {},
+        "all_values": {},
     }
+
+    try:
+        aihub = _AIHub()
+        result["ai_configured"] = True
+    except Exception as exc:
+        result["ai_error"] = f"{type(exc).__name__}: {exc}"
+        return result
+
+    model_name = result["model"]
+    prompt = (
+        f"Оцени микронутриенты для блюда.\n"
+        f"Блюдо: {food_name}\nПорция (г): {portion_grams or 100}\n"
+        f"Калории: {calories or 0}\nБелки: {protein or 0}\n"
+        f"Жиры: {fat or 0}\nУглеводы: {carbs or 0}\n\n"
+        f"Верни ТОЛЬКО JSON с полями:\n{', '.join(MICRONUTRIENT_FIELDS)}"
+    )
+
+    try:
+        req = _Req(
+            messages=[
+                _CM(role="system", content="Верни ТОЛЬКО валидный JSON без markdown."),
+                _CM(role="user", content=prompt),
+            ],
+            model=model_name,
+            stream=False,
+            temperature=0.1,
+            max_tokens=1200,
+        )
+        resp = await aihub.gentxt(req)
+        raw = resp.content or ""
+        result["raw_ai_response"] = raw[:500]
+    except Exception as exc:
+        result["ai_error"] = f"gentxt failed: {type(exc).__name__}: {exc}"
+        result["traceback"] = traceback.format_exc()[-800:]
+        return result
+
+    try:
+        parsed = MicronutrientsService._extract_json(raw)
+        normalized = MicronutrientsService._normalize(parsed)
+        nonzero = {k: v for k, v in normalized.items() if v > 0}
+        result["nonzero_count"] = len(nonzero)
+        result["nonzero_values"] = nonzero
+        result["all_values"] = normalized
+    except Exception as exc:
+        result["parse_error"] = f"{type(exc).__name__}: {exc}"
+        result["all_values"] = MicronutrientsService.default_zero_payload()
+
+    return result
 
 
 # ---------- Pydantic Schemas ----------

@@ -18,18 +18,28 @@ interface MealPlanData {
   status: string;
 }
 
+interface MealRecipe {
+  ingredients: string;
+  instructions: string;
+  tips?: string;
+  nutritional_notes?: string;
+}
+
+interface MealItem {
+  type: string;
+  name: string;
+  calories: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+  cooking_time: number;
+  image_url?: string;
+  recipe?: MealRecipe;
+}
+
 interface DayPlan {
   day: string;
-  meals: {
-    type: string;
-    name: string;
-    calories: number;
-    protein: number;
-    fat: number;
-    carbs: number;
-    cooking_time: number;
-    image_url?: string;
-  }[];
+  meals: MealItem[];
 }
 
 const MEAL_EMOJI: Record<string, string> = {
@@ -109,32 +119,42 @@ export default function MealPlan() {
     }
   };
 
+  // Сохранение рецепта с автоматической генерацией подробного рецепта
   const saveRecipe = async (dayIndex: number, mealIndex: number) => {
     const meal = plan?.[dayIndex]?.meals?.[mealIndex];
     if (!meal) return;
     const key = `${dayIndex}-${mealIndex}`;
-    setSavingRecipe(key);
-    try {
-      await client.entities.recipes.create({
-        data: {
-          title: meal.name,
-          description: `${MEAL_LABELS[meal.type] || meal.type} — ${plan?.[dayIndex]?.day || ''}`,
-          calories: meal.calories,
-          protein: meal.protein,
-          fat: meal.fat,
-          carbs: meal.carbs,
-          cooking_time: meal.cooking_time || 20,
-          servings: 1,
-          image_url: meal.image_url || '',
-          cuisine: 'Русская',
-        },
-      });
-      setSavedRecipes((prev) => new Set(prev).add(key));
-      toast.success(`«${meal.name}» сохранён в рецепты!`);
-    } catch {
-      toast.error('Не удалось сохранить рецепт');
-    } finally {
-      setSavingRecipe(null);
+    
+    // Если рецепт уже сгенерирован, просто сохраняем
+    if (meal.recipe) {
+      setSavingRecipe(key);
+      try {
+        await client.entities.recipes.create({
+          data: {
+            title: meal.name,
+            description: `${MEAL_LABELS[meal.type] || meal.type} — ${plan?.[dayIndex]?.day || ''}`,
+            calories: meal.calories,
+            protein: meal.protein,
+            fat: meal.fat,
+            carbs: meal.carbs,
+            cooking_time: meal.cooking_time || 20,
+            servings: 1,
+            image_url: meal.image_url || '',
+            cuisine: 'Русская',
+            ingredients: meal.recipe.ingredients,
+            instructions: meal.recipe.instructions,
+          },
+        });
+        setSavedRecipes((prev) => new Set(prev).add(key));
+        toast.success(`«${meal.name}» сохранён в рецепты!`);
+      } catch {
+        toast.error('Не удалось сохранить рецепт');
+      } finally {
+        setSavingRecipe(null);
+      }
+    } else {
+      // Если рецепта нет - генерируем его
+      await generateRecipeForMeal(dayIndex, mealIndex);
     }
   };
 
@@ -213,12 +233,14 @@ export default function MealPlan() {
       const p = profiles[0];
 
       const tc = p.target_calories || 2000;
+      const tcMin = tc - 50;
+      const tcMax = tc + 50;
       const prompt = `Составь план питания на 7 дней на русском языке. Верни ТОЛЬКО JSON-массив без markdown.
 Параметры пользователя:
 - Цель: ${p.goal === 'lose' ? 'похудение' : p.goal === 'gain' ? 'набор массы' : 'поддержание веса'}
 - Суточная норма калорий: ${tc} ккал/день — это ОБЯЗАТЕЛЬНАЯ цель на каждый день.
-- Для КАЖДОГО из 7 дней сумма полей calories по всем элементам meals должна быть в диапазоне от ${Math.round(tc * 0.9)} до ${Math.round(tc * 1.1)} ккал (допуск ±10% от ${tc}).
-- Ориентир распределения калорий по приёмам на день: завтрак ~25–30%, обед ~30–35%, ужин ~25–30%, перекус ~10–15% от суточной нормы; сумма четырёх приёмов должна давать указанную суточную сумму.
+- Для КАЖДОГО из 7 дней сумма полей calories по всем элементам meals должна быть СТРОГО в диапазоне от ${tcMin} до ${tcMax} ккал (допуск ±50 ккал от ${tc}). ЭТО КРИТИЧЕСКИ ВАЖНО — сумма калорий за день должна быть равна ${tc} ±50 ккал.
+- Распределение калорий по приёмам на день: завтрак ~25–30%, обед ~30–35%, ужин ~25–30%, перекус ~10–15% от суточной нормы; сумма четырёх приёмов должна давать указанную суточную сумму ${tc} ±50 ккал.
 - Белки за день в сумме близки к ${p.target_protein}г, жиры к ${p.target_fat}г, углеводы к ${p.target_carbs}г (согласуй с калориями).
 - Аллергии: ${p.allergies || 'нет'}
 - Кухня: ${p.cuisine_preferences || 'Русская'}
@@ -227,7 +249,7 @@ export default function MealPlan() {
 
 Формат JSON:
 [{"day":"Понедельник","meals":[{"type":"breakfast","name":"Название блюда","calories":350,"protein":20,"fat":12,"carbs":40,"cooking_time":15},{"type":"lunch","name":"...","calories":450,"protein":30,"fat":15,"carbs":50,"cooking_time":25},{"type":"dinner","name":"...","calories":400,"protein":28,"fat":14,"carbs":42,"cooking_time":30},{"type":"snack","name":"...","calories":150,"protein":8,"fat":5,"carbs":18,"cooking_time":5}]}]
-Используй российские продукты и блюда. Ровно 7 дней. Не занижай и не завышай суточные калории без причины; ответ — только валидный JSON без markdown.`;
+Используй российские продукты и блюда. Ровно 7 дней. Сумма калорий каждого дня ДОЛЖНА быть ${tc} ±50 ккал — это строгое требование; ответ — только валидный JSON без markdown.`;
 
       let fullText = '';
       await client.ai.gentxt({
@@ -298,6 +320,94 @@ export default function MealPlan() {
       toast.error('Не удалось сгенерировать изображение');
     } finally {
       setGeneratingImage(null);
+    }
+  };
+
+  // Генерация подробного рецепта для блюда
+  const generateRecipeForMeal = async (dayIndex: number, mealIndex: number) => {
+    const meal = plan?.[dayIndex]?.meals?.[mealIndex];
+    if (!meal) return;
+    const key = `${dayIndex}-${mealIndex}`;
+    setSavingRecipe(key);
+    try {
+      // Генерируем рецепт через AI
+      let recipeText = '';
+      await client.ai.gentxt({
+        messages: [
+          {
+            role: 'system',
+            content: 'Ты — профессиональный шеф-повар. Составляй подробные рецепты на русском языке. Отвечай ТОЛЬКО валидным JSON без markdown-обёрток.'
+          },
+          {
+            role: 'user',
+            content: `Составь подробный рецепт для блюда "${meal.name}" на русском языке.
+Верни ТОЛЬКО JSON без markdown.
+Параметры блюда:
+- Калорийность: ${meal.calories} ккал
+- Белки: ${meal.protein}г, Жиры: ${meal.fat}г, Углеводы: ${meal.carbs}г
+- Время приготовления: ${meal.cooking_time} минут
+- Тип приёма пищи: ${MEAL_LABELS[meal.type] || meal.type}
+
+Формат JSON:
+{
+  "ingredients": "список ингредиентов с точными количествами (например: 200г куриной грудки, 1 ст.л. оливкового масла)",
+  "instructions": "пошаговая инструкция приготовления (каждый шаг с новой строки, начинается с номера)",
+  "tips": "полезные советы по приготовлению и подаче",
+  "nutritional_notes": "краткие заметки о питательной ценности и пользе блюда"
+}`
+          },
+        ],
+        model: 'openai/gpt-4o-mini',
+        stream: true,
+        onChunk: (chunk: { content?: string }) => {
+          recipeText += chunk.content || '';
+        },
+        onComplete: async () => {
+          try {
+            let jsonStr = recipeText.trim();
+            const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+            if (jsonMatch) jsonStr = jsonMatch[0];
+            const recipe: MealRecipe = JSON.parse(jsonStr);
+            
+            // Обновляем план с рецептом
+            if (plan) {
+              const updatedPlan = [...plan];
+              updatedPlan[dayIndex].meals[mealIndex].recipe = recipe;
+              setPlan(updatedPlan);
+            }
+            
+            // Сохраняем рецепт в БД
+            await client.entities.recipes.create({
+              data: {
+                title: meal.name,
+                description: `${MEAL_LABELS[meal.type] || meal.type} — ${plan?.[dayIndex]?.day || ''}`,
+                calories: meal.calories,
+                protein: meal.protein,
+                fat: meal.fat,
+                carbs: meal.carbs,
+                cooking_time: meal.cooking_time || 20,
+                servings: 1,
+                image_url: meal.image_url || '',
+                cuisine: 'Русская',
+                ingredients: recipe.ingredients,
+                instructions: recipe.instructions,
+              },
+            });
+            setSavedRecipes((prev) => new Set(prev).add(key));
+            toast.success(`Рецепт для «${meal.name}» создан и сохранён!`);
+          } catch (parseErr) {
+            console.error('Recipe parse error:', parseErr);
+            toast.error('Не удалось сохранить рецепт');
+          }
+        },
+        onError: (error: { message?: string }) => {
+          toast.error(error?.message || 'Ошибка генерации рецепта');
+        },
+      });
+    } catch {
+      toast.error('Не удалось создать рецепт');
+    } finally {
+      setSavingRecipe(null);
     }
   };
 

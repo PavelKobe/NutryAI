@@ -14,6 +14,11 @@ import {
   Clock,
   ArrowLeft,
   UtensilsCrossed,
+  Users,
+  ListChecks,
+  BookOpen,
+  Plus,
+  Minus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -201,7 +206,8 @@ export default function SavedRecipes() {
 
                   {/* Expanded Details */}
                   {isExpanded && (
-                    <div className="px-4 pb-4 space-y-3 border-t border-slate-800/50 pt-3">
+                    <div className="px-4 pb-4 space-y-4 border-t border-slate-800/50 pt-3">
+                      {/* Large Image */}
                       {recipe.image_url && (
                         <img
                           src={recipe.image_url}
@@ -210,46 +216,107 @@ export default function SavedRecipes() {
                         />
                       )}
 
+                      {/* Description */}
                       {recipe.description && (
                         <p className="text-sm text-slate-300">{recipe.description}</p>
                       )}
 
-                      {recipe.servings && (
-                        <p className="text-xs text-slate-500">
-                          Порций: {recipe.servings}
-                        </p>
+                      {/* Quick Info Row */}
+                      <div className="flex flex-wrap gap-3">
+                        {recipe.servings && (
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 text-xs">
+                            <Users className="w-3.5 h-3.5 text-blue-400" />
+                            <span className="text-slate-300">{recipe.servings} порций</span>
+                          </div>
+                        )}
+                        {recipe.cooking_time && (
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 text-xs">
+                            <Clock className="w-3.5 h-3.5 text-amber-400" />
+                            <span className="text-slate-300">{recipe.cooking_time} мин</span>
+                          </div>
+                        )}
+                        {recipe.calories && (
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 text-xs">
+                            <Flame className="w-3.5 h-3.5 text-orange-400" />
+                            <span className="text-slate-300">{recipe.calories} ккал</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* КБЖУ */}
+                      {(recipe.protein || recipe.fat || recipe.carbs) && (
+                        <div className="flex gap-4 text-xs">
+                          {recipe.protein != null && (
+                            <div className="flex items-center gap-1">
+                              <div className="w-2 h-2 rounded-full bg-red-500" />
+                              <span className="text-slate-400">Белки:</span>
+                              <span className="text-red-400 font-medium">{recipe.protein}г</span>
+                            </div>
+                          )}
+                          {recipe.fat != null && (
+                            <div className="flex items-center gap-1">
+                              <div className="w-2 h-2 rounded-full bg-amber-500" />
+                              <span className="text-slate-400">Жиры:</span>
+                              <span className="text-amber-400 font-medium">{recipe.fat}г</span>
+                            </div>
+                          )}
+                          {recipe.carbs != null && (
+                            <div className="flex items-center gap-1">
+                              <div className="w-2 h-2 rounded-full bg-blue-500" />
+                              <span className="text-slate-400">Углеводы:</span>
+                              <span className="text-blue-400 font-medium">{recipe.carbs}г</span>
+                            </div>
+                          )}
+                        </div>
                       )}
 
+                      {/* Ingredients - Parse and display as list */}
                       {recipe.ingredients && (
-                        <div>
-                          <h4 className="text-sm font-semibold text-emerald-400 mb-1">
+                        <div className="bg-slate-800/30 rounded-xl p-3">
+                          <h4 className="text-sm font-semibold text-emerald-400 mb-2 flex items-center gap-2">
+                            <ListChecks className="w-4 h-4" />
                             Ингредиенты
                           </h4>
-                          <p className="text-sm text-slate-300 whitespace-pre-line">
-                            {recipe.ingredients}
-                          </p>
+                          <ul className="space-y-1.5">
+                            {recipe.ingredients.split('\n').filter(Boolean).map((ingredient, idx) => (
+                              <li key={idx} className="text-sm text-slate-300 flex items-start gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
+                                <span>{ingredient.trim()}</span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       )}
 
+                      {/* Instructions - Parse and display as steps */}
                       {recipe.instructions && (
-                        <div>
-                          <h4 className="text-sm font-semibold text-indigo-400 mb-1">
-                            Приготовление
+                        <div className="bg-slate-800/30 rounded-xl p-3">
+                          <h4 className="text-sm font-semibold text-indigo-400 mb-2 flex items-center gap-2">
+                            <BookOpen className="w-4 h-4" />
+                            Как приготовить
                           </h4>
-                          <p className="text-sm text-slate-300 whitespace-pre-line">
-                            {recipe.instructions}
-                          </p>
+                          <ol className="space-y-3">
+                            {recipe.instructions.split('\n').filter(Boolean).map((step, idx) => (
+                              <li key={idx} className="text-sm text-slate-300 flex gap-3">
+                                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-medium">
+                                  {idx + 1}
+                                </span>
+                                <span className="pt-0.5">{step.trim()}</span>
+                              </li>
+                            ))}
+                          </ol>
                         </div>
                       )}
 
+                      {/* Delete Button */}
                       <Button
                         onClick={() => handleDelete(recipe.id)}
                         disabled={deletingId === recipe.id}
                         variant="ghost"
                         size="sm"
-                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10 w-full justify-start"
                       >
-                        <Trash2 className="w-4 h-4 mr-1" />
+                        <Trash2 className="w-4 h-4 mr-2" />
                         {deletingId === recipe.id ? 'Удаление...' : 'Удалить рецепт'}
                       </Button>
                     </div>

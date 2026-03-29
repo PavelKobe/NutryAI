@@ -43,6 +43,16 @@ def upgrade() -> None:
         if "ix_meal_logs_user_id_logged_at" not in existing_indexes:
             op.create_index("ix_meal_logs_user_id_logged_at", "meal_logs", ["user_id", "logged_at"])
 
+    # weight_logs indexes
+    if insp.has_table("weight_logs"):
+        existing_indexes = {idx["name"] for idx in insp.get_indexes("weight_logs")}
+        
+        if "ix_weight_logs_user_id" not in existing_indexes:
+            op.create_index("ix_weight_logs_user_id", "weight_logs", ["user_id"])
+        
+        if "ix_weight_logs_logged_at" not in existing_indexes:
+            op.create_index("ix_weight_logs_logged_at", "weight_logs", ["logged_at"])
+
 
 def downgrade() -> None:
     # Drop indexes
@@ -51,3 +61,5 @@ def downgrade() -> None:
     op.drop_index("ix_meal_logs_user_id", table_name="meal_logs")
     op.drop_index("ix_meal_logs_logged_at", table_name="meal_logs")
     op.drop_index("ix_meal_logs_user_id_logged_at", table_name="meal_logs")
+    op.drop_index("ix_weight_logs_user_id", table_name="weight_logs")
+    op.drop_index("ix_weight_logs_logged_at", table_name="weight_logs")

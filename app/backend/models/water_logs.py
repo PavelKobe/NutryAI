@@ -4,8 +4,9 @@ from sqlalchemy import Column, DateTime, Float, Index, Integer, String
 
 class Water_logs(Base):
     __tablename__ = "water_logs"
+    __mapper_args__ = {"confirm_deleted_rows": False}
+    
     __table_args__ = (
-        {"extend_existing": True},
         Index("ix_water_logs_user_id", "user_id"),
         Index("ix_water_logs_logged_at", "logged_at"),
         Index("ix_water_logs_user_id_logged_at", "user_id", "logged_at"),

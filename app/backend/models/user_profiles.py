@@ -4,8 +4,9 @@ from sqlalchemy import Boolean, Column, DateTime, Float, Index, Integer, String
 
 class User_profiles(Base):
     __tablename__ = "user_profiles"
+    __mapper_args__ = {"confirm_deleted_rows": False}
+    
     __table_args__ = (
-        {"extend_existing": True},
         Index("ix_user_profiles_user_id", "user_id"),
     )
 

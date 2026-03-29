@@ -1,10 +1,15 @@
 from core.database import Base
-from sqlalchemy import Column, DateTime, Float, Integer, String
+from sqlalchemy import Column, DateTime, Float, Index, Integer, String
 
 
 class Meal_logs(Base):
     __tablename__ = "meal_logs"
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (
+        {"extend_existing": True},
+        Index("ix_meal_logs_user_id", "user_id"),
+        Index("ix_meal_logs_logged_at", "logged_at"),
+        Index("ix_meal_logs_user_id_logged_at", "user_id", "logged_at"),
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
     user_id = Column(String, nullable=False)

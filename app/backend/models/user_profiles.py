@@ -1,10 +1,13 @@
 from core.database import Base
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Float, Index, Integer, String
 
 
 class User_profiles(Base):
     __tablename__ = "user_profiles"
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (
+        {"extend_existing": True},
+        Index("ix_user_profiles_user_id", "user_id"),
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
     user_id = Column(String, nullable=False)

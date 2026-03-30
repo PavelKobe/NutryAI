@@ -36,4 +36,5 @@ web/.next/
 *.tsbuildinfo
 
 # Локальная копия шаблона nginx для ВМ (не коммитить; в репо есть nginx.conf.example)
-/nginx.conf
+/nginx.confCLAUDE.md
+CLAUDE.md

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { persistSessionToken, registerWithEmail } from '@/lib/emailAuth';
+import { loginWithYandex } from '@/lib/oauthAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -82,6 +83,21 @@ export default function Register() {
             {loading ? 'Создание…' : 'Зарегистрироваться'}
           </Button>
         </form>
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-700" />
+          </div>
+          <div className="relative flex justify-center text-xs">
+            <span className="bg-slate-900 px-2 text-slate-500">или</span>
+          </div>
+        </div>
+        <Button
+          type="button"
+          onClick={loginWithYandex}
+          className="w-full bg-[#FC3F1D] hover:bg-[#e8361a] text-white"
+        >
+          Зарегистрироваться через Яндекс
+        </Button>
         <p className="text-center text-sm text-slate-400">
           Уже есть аккаунт?{' '}
           <Link href="/login" className="text-emerald-400 hover:underline">

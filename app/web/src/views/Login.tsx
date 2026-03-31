@@ -74,13 +74,17 @@ export default function Login() {
             <span className="bg-slate-900 px-2 text-slate-500">или</span>
           </div>
         </div>
-        <Button
+        <button
           type="button"
           onClick={loginWithYandex}
-          className="w-full bg-[#FC3F1D] hover:bg-[#e8361a] text-white"
+          className="w-full flex items-center justify-center gap-3 rounded-lg border border-slate-700 bg-white hover:bg-slate-100 text-slate-900 font-medium py-2.5 px-4 transition-colors"
         >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="12" fill="#FC3F1D"/>
+            <path d="M13.32 7.2H12.2C10.62 7.2 9.78 8.01 9.78 9.25C9.78 10.65 10.38 11.33 11.6 12.15L12.77 12.94L9.72 17.6H7.8L10.58 13.38C9.09 12.34 8.2 11.31 8.2 9.34C8.2 7.25 9.62 5.8 12.18 5.8H14.94V17.6H13.32V7.2Z" fill="white"/>
+          </svg>
           Войти через Яндекс
-        </Button>
+        </button>
         <p className="text-center text-sm text-slate-400">
           Нет аккаунта?{' '}
           <Link href="/register" className="text-emerald-400 hover:underline">

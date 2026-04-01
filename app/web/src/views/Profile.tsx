@@ -362,6 +362,7 @@ export default function Profile() {
                     const v = e.target.value;
                     updateForm('age', v === '' ? 0 : parseInt(v, 10) || 0);
                   }}
+                  onFocus={(e) => e.target.select()}
                   className="bg-slate-800 border-slate-700 text-white rounded-xl"
                   min={14}
                   max={100}
@@ -379,6 +380,7 @@ export default function Profile() {
                       const v = e.target.value;
                       updateForm('height_cm', v === '' ? 0 : parseInt(v, 10) || 0);
                     }}
+                    onFocus={(e) => e.target.select()}
                     className="bg-slate-800 border-slate-700 text-white rounded-xl"
                     min={100}
                     max={250}
@@ -393,6 +395,7 @@ export default function Profile() {
                       const v = e.target.value;
                       updateForm('weight_kg', v === '' ? 0 : parseFloat(v) || 0);
                     }}
+                    onFocus={(e) => e.target.select()}
                     className="bg-slate-800 border-slate-700 text-white rounded-xl"
                     min={30}
                     max={300}
@@ -411,6 +414,7 @@ export default function Profile() {
                     const v = e.target.value;
                     updateForm('target_weight_kg', v === '' ? 0 : parseFloat(v) || 0);
                   }}
+                  onFocus={(e) => e.target.select()}
                   className="bg-slate-800 border-slate-700 text-white rounded-xl"
                   min={30}
                   max={300}
@@ -510,6 +514,7 @@ export default function Profile() {
                     const v = e.target.value;
                     updateForm('budget_per_week', v === '' ? 0 : parseInt(v, 10) || 0);
                   }}
+                  onFocus={(e) => e.target.select()}
                   className="bg-slate-800 border-slate-700 text-white rounded-xl"
                   min={500}
                   step={500}

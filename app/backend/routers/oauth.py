@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 from core.database import get_db
-from services.oauth import YandexOAuthService
+from services.oauth import YandexOAuthService, VkIdOAuthService
 from services.auth import AuthService
 
 logger = logging.getLogger(__name__)
@@ -72,3 +72,61 @@ async def yandex_callback(
     except Exception as exc:
         logger.error("Yandex OAuth error: %s", exc, exc_info=True)
         return RedirectResponse(f"{_ERROR_URL}?reason=yandex_error")
+
+
+@router.get("/vkid")
+async def vkid_login(db: AsyncSession = Depends(get_db)):
+    """Redirect the user to VK OAuth authorization page."""
+    state = await VkIdOAuthService.create_state(db)
+    url = VkIdOAuthService.get_auth_url(state)
+    logger.info("Redirecting to VK OAuth")
+    return RedirectResponse(url)
+
+
+@router.get("/vkid/callback")
+async def vkid_callback(
+    code: str = Query(...),
+    state: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Handle VK OAuth callback, issue JWT, redirect to frontend."""
+    # 1. Validate CSRF state
+    valid = await VkIdOAuthService.validate_and_delete_state(db, state)
+    if not valid:
+        logger.warning("VK callback: invalid or expired state")
+        return RedirectResponse(f"{_ERROR_URL}?reason=invalid_state")
+
+    try:
+        # 2. Exchange code → {access_token, email, user_id}
+        token_data = await VkIdOAuthService.exchange_code(code)
+        access_token = token_data["access_token"]
+        email = token_data.get("email")
+        user_id = token_data.get("user_id")
+
+        if not email:
+            logger.warning("VK did not return email for user_id=%s", user_id)
+            return RedirectResponse(f"{_ERROR_URL}?reason=no_email")
+
+        # 3. Fetch first/last name from VK
+        user_info = await VkIdOAuthService.get_user_info(access_token, user_id)
+
+        # 4. Find or create user in DB
+        user = await VkIdOAuthService.find_or_create_user(
+            db=db,
+            email=email,
+            name=user_info["name"],
+            vk_id=str(user_id),
+        )
+
+        # 5. Issue app JWT
+        auth_service = AuthService(db)
+        token, _, _ = await auth_service.issue_app_token(user)
+
+        # 6. Redirect to frontend callback with token
+        callback = _frontend_callback()
+        logger.info("VK OAuth success for %s", email)
+        return RedirectResponse(f"{callback}?token={token}")
+
+    except Exception as exc:
+        logger.error("VK OAuth error: %s", exc, exc_info=True)
+        return RedirectResponse(f"{_ERROR_URL}?reason=vkid_error")

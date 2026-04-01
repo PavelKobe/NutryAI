@@ -76,10 +76,10 @@ async def yandex_callback(
 
 @router.get("/vkid")
 async def vkid_login(db: AsyncSession = Depends(get_db)):
-    """Redirect the user to VK OAuth authorization page."""
-    state = await VkIdOAuthService.create_state(db)
-    url = VkIdOAuthService.get_auth_url(state)
-    logger.info("Redirecting to VK OAuth")
+    """Redirect the user to VK ID authorization page (OAuth 2.1 + PKCE)."""
+    state, code_verifier = await VkIdOAuthService.create_state(db)
+    url = VkIdOAuthService.get_auth_url(state, code_verifier)
+    logger.info("Redirecting to VK ID OAuth")
     return RedirectResponse(url)
 
 
@@ -87,28 +87,31 @@ async def vkid_login(db: AsyncSession = Depends(get_db)):
 async def vkid_callback(
     code: str = Query(...),
     state: str = Query(...),
+    device_id: str = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Handle VK OAuth callback, issue JWT, redirect to frontend."""
-    # 1. Validate CSRF state
-    valid = await VkIdOAuthService.validate_and_delete_state(db, state)
-    if not valid:
-        logger.warning("VK callback: invalid or expired state")
+    """Handle VK ID OAuth callback, issue JWT, redirect to frontend."""
+    # 1. Validate state and retrieve code_verifier
+    code_verifier = await VkIdOAuthService.pop_state(db, state)
+    if not code_verifier:
+        logger.warning("VK ID callback: invalid or expired state")
         return RedirectResponse(f"{_ERROR_URL}?reason=invalid_state")
 
     try:
         # 2. Exchange code → {access_token, email, user_id}
-        token_data = await VkIdOAuthService.exchange_code(code)
+        token_data = await VkIdOAuthService.exchange_code(code, code_verifier, device_id)
         access_token = token_data["access_token"]
         email = token_data.get("email")
         user_id = token_data.get("user_id")
 
+        # 3. Fetch name (and email fallback) from VK ID user_info
+        user_info = await VkIdOAuthService.get_user_info(access_token)
         if not email:
-            logger.warning("VK did not return email for user_id=%s", user_id)
-            return RedirectResponse(f"{_ERROR_URL}?reason=no_email")
+            email = user_info.get("email")
 
-        # 3. Fetch first/last name from VK
-        user_info = await VkIdOAuthService.get_user_info(access_token, user_id)
+        if not email:
+            logger.warning("VK ID did not return email for user_id=%s", user_id)
+            return RedirectResponse(f"{_ERROR_URL}?reason=no_email")
 
         # 4. Find or create user in DB
         user = await VkIdOAuthService.find_or_create_user(
@@ -124,9 +127,9 @@ async def vkid_callback(
 
         # 6. Redirect to frontend callback with token
         callback = _frontend_callback()
-        logger.info("VK OAuth success for %s", email)
+        logger.info("VK ID OAuth success for %s", email)
         return RedirectResponse(f"{callback}?token={token}")
 
     except Exception as exc:
-        logger.error("VK OAuth error: %s", exc, exc_info=True)
+        logger.error("VK ID OAuth error: %s", exc, exc_info=True)
         return RedirectResponse(f"{_ERROR_URL}?reason=vkid_error")

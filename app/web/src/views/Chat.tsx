@@ -109,7 +109,7 @@ export default function Chat() {
           ...chatHistory,
           { role: 'user', content: text.trim() },
         ],
-        model: 'anthropic/claude-3.5-sonnet-20241022',
+        model: 'google/gemini-2.5-pro-preview-03-25',
         stream: true,
         onChunk: (chunk: { content?: string }) => {
           fullResponse += chunk.content || '';

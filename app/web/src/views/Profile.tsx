@@ -96,7 +96,7 @@ export default function Profile() {
     allergies: [] as string[],
     cuisine_preferences: [] as string[],
     budget_per_week: 3000,
-    city: 'Москва',
+    city: '',
     cooking_time_minutes: 30,
   });
 

@@ -244,7 +244,7 @@ class VkIdOAuthService:
             "client_id": client_id,
             "redirect_uri": redirect_uri,
             "state": state,
-            "scope": "email",
+            "scope": "email vkid.personal_info",
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
         }

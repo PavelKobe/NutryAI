@@ -110,8 +110,9 @@ async def vkid_callback(
             email = user_info.get("email")
 
         if not email:
-            logger.warning("VK ID did not return email for user_id=%s", user_id)
-            return RedirectResponse(f"{_ERROR_URL}?reason=no_email")
+            # VK пользователи могут не иметь email (регистрация по телефону)
+            email = f"vk{user_id}@users.id.vk.com"
+            logger.info("VK ID: no email for user_id=%s, using synthetic %s", user_id, email)
 
         # 4. Find or create user in DB
         user = await VkIdOAuthService.find_or_create_user(

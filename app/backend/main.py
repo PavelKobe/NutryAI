@@ -26,6 +26,16 @@ def _load_env_development_for_local() -> None:
 
 _load_env_development_for_local()
 
+import sentry_sdk
+
+_sentry_dsn = __import__("os").environ.get("SENTRY_DSN", "")
+if _sentry_dsn:
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        send_default_pii=False,
+        traces_sample_rate=0.2,
+    )
+
 from core.config import settings
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware

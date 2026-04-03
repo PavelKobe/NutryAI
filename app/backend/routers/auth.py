@@ -1,8 +1,9 @@
 import logging
 
 from core.database import get_db
+from core.limiter import limiter
 from dependencies.auth import get_current_user
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from schemas.auth import (
     AuthTokenResponse,
     EmailLoginRequest,
@@ -10,6 +11,7 @@ from schemas.auth import (
     UserResponse,
 )
 from services.auth import AuthService
+from services.subscription import SubscriptionService
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
@@ -17,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/register", response_model=AuthTokenResponse)
-async def register(payload: EmailRegisterRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register(request: Request, payload: EmailRegisterRequest, db: AsyncSession = Depends(get_db)):
     """Регистрация по email и паролю."""
     auth_service = AuthService(db)
     try:
@@ -29,6 +32,10 @@ async def register(payload: EmailRegisterRequest, db: AsyncSession = Depends(get
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
 
+    # Назначаем бесплатный 7-дневный тариф сразу при регистрации
+    sub_service = SubscriptionService(db)
+    await sub_service.assign_free_plan(user.id)
+
     token, expires_at, _ = await auth_service.issue_app_token(user=user)
     return AuthTokenResponse(
         token=token,
@@ -37,7 +44,8 @@ async def register(payload: EmailRegisterRequest, db: AsyncSession = Depends(get
 
 
 @router.post("/login", response_model=AuthTokenResponse)
-async def login(payload: EmailLoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(request: Request, payload: EmailLoginRequest, db: AsyncSession = Depends(get_db)):
     """Вход по email и паролю."""
     auth_service = AuthService(db)
     user = await auth_service.authenticate_email(str(payload.email), payload.password)

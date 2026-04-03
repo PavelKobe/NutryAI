@@ -8,7 +8,9 @@ import json
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from dependencies.subscription import check_ai_subscription
+from fastapi import APIRouter, Depends, HTTPException, status
+from schemas.auth import UserResponse
 from schemas.aihub import GenImgRequest, GenImgResponse, GenTxtRequest
 from services.aihub import AIHubService, InvalidImageInputError
 from sse_starlette.sse import EventSourceResponse
@@ -99,6 +101,7 @@ router = APIRouter(prefix="/api/v1/aihub", tags=["aihub"])
 @router.post("/gentxt")
 async def generate_text(
     request: GenTxtRequest,
+    _user: UserResponse = Depends(check_ai_subscription),
 ):
     """
     Generate Text endpoint (supports text and image input).

@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, Sparkles, Trash2, Bot, User } from 'lucide-react';
 import { toast } from 'sonner';
+import UpgradeSubscriptionModal, {
+  type UpgradeTrigger,
+} from '@/components/subscription/UpgradeSubscriptionModal';
 
 const CHAT_IMG = 'https://mgx-backend-cdn.metadl.com/generate/images/1042541/2026-03-20/1897eaa0-5e6b-4976-97be-55c0abde28e2.png';
 
@@ -23,11 +26,23 @@ const QUICK_QUESTIONS = [
   'Чем заменить сладкое?',
 ];
 
+/** Разбирает тип ошибки из сообщения и возвращает trigger для модала или null */
+function parseSubscriptionError(message?: string): UpgradeTrigger | null {
+  if (!message) return null;
+  const lower = message.toLowerCase();
+  if (lower.includes('trial_expired') || lower.includes('пробный период')) return 'trial_expired';
+  if (lower.includes('daily_limit_exceeded') || lower.includes('дневной лимит')) return 'limit';
+  if (lower.includes('429')) return 'limit';
+  return null;
+}
+
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitTrigger, setLimitTrigger] = useState<UpgradeTrigger>('limit');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,6 +70,13 @@ export default function Chat() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubscriptionError = (trigger: UpgradeTrigger) => {
+    // Убираем пустое сообщение ассистента
+    setMessages((prev) => prev.slice(0, -1));
+    setLimitTrigger(trigger);
+    setShowLimitModal(true);
   };
 
   const sendMessage = async (text: string) => {
@@ -129,7 +151,28 @@ export default function Chat() {
             // continue
           }
         },
-        onError: (error: { message?: string }) => {
+        onError: (error: { message?: string; status?: number; body?: unknown }) => {
+          // Проверяем subscription-related ошибки (429)
+          const body = error.body as { detail?: { error?: string } } | undefined;
+          const errorCode = body?.detail?.error;
+
+          if (errorCode === 'daily_limit_exceeded' || error.status === 429) {
+            handleSubscriptionError('limit');
+            return;
+          }
+          if (errorCode === 'trial_expired') {
+            handleSubscriptionError('trial_expired');
+            return;
+          }
+
+          // Проверяем по тексту сообщения (fallback)
+          const trigger = parseSubscriptionError(error?.message);
+          if (trigger) {
+            handleSubscriptionError(trigger);
+            return;
+          }
+
+          // Обычная ошибка
           toast.error(error?.message || 'Ошибка ИИ');
           setMessages((prev) => {
             const updated = [...prev];
@@ -141,8 +184,16 @@ export default function Chat() {
           });
         },
       });
-    } catch {
-      toast.error('Не удалось отправить сообщение');
+    } catch (err: unknown) {
+      // Обработка ошибок подписки на уровне catch (если SDK не вызвал onError)
+      const msg = err instanceof Error ? err.message : String(err);
+      const trigger = parseSubscriptionError(msg);
+      if (trigger) {
+        handleSubscriptionError(trigger);
+      } else {
+        toast.error('Не удалось отправить сообщение');
+        setMessages((prev) => prev.slice(0, -1));
+      }
     } finally {
       setSending(false);
     }
@@ -275,6 +326,12 @@ export default function Chat() {
           </div>
         </div>
       </div>
+
+      <UpgradeSubscriptionModal
+        open={showLimitModal}
+        onOpenChange={setShowLimitModal}
+        trigger={limitTrigger}
+      />
     </AppLayout>
   );
 }

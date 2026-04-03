@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 
 const freeFeatures = [
-  { text: 'Дневник питания (до 10 записей/день)', included: true },
-  { text: 'Распознавание еды по фото (5 раз/день)', included: true },
+  { text: '7 дней бесплатно', included: true },
+  { text: 'Дневник питания', included: true },
   { text: 'База данных 500K+ блюд', included: true },
   { text: 'Базовая аналитика КБЖУ', included: true },
-  { text: 'ИИ-чат (10 сообщений/день)', included: true },
+  { text: 'ИИ-чат (20 запросов/день)', included: true },
   { text: 'Персональный план питания', included: false },
   { text: 'Безлимитное распознавание фото', included: false },
   { text: 'Расширенная аналитика и отчёты', included: false },
@@ -74,9 +74,9 @@ export default function PricingSection() {
     return () => observer.disconnect();
   }, []);
 
-  const monthlyPrice = 299;
-  const yearlyPrice = Math.round(monthlyPrice * 12 * 0.6);
-  const yearlyPerMonth = Math.round(yearlyPrice / 12);
+  const monthlyPrice = 499;
+  const yearlyPrice = 3990;
+  const yearlyPerMonth = Math.round(yearlyPrice / 12); // 332₽/мес
 
   return (
     <section
@@ -176,7 +176,7 @@ export default function PricingSection() {
                   color: isYearly ? '#000' : '#00e676',
                 }}
               >
-                −40%
+                −33%
               </span>
             </button>
           </div>

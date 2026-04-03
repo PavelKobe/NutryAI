@@ -7,6 +7,10 @@ import React, {
   ReactNode,
 } from 'react';
 import { client } from '@/lib/api';
+import {
+  fetchSubscriptionStatus,
+  UserSubscriptionStatus,
+} from '@/lib/subscriptionApi';
 
 interface User {
   id: string;
@@ -25,6 +29,9 @@ interface AuthContextType {
   refetch: () => Promise<void>;
   isAdmin: boolean;
   userName: string;
+  subscription: UserSubscriptionStatus | null;
+  subscriptionLoading: boolean;
+  refetchSubscription: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -45,6 +52,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [subscription, setSubscription] = useState<UserSubscriptionStatus | null>(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+
+  const loadSubscription = useCallback(async () => {
+    setSubscriptionLoading(true);
+    try {
+      const data = await fetchSubscriptionStatus();
+      setSubscription(data.subscription);
+    } catch {
+      setSubscription(null);
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  }, []);
 
   const checkAuthStatus = useCallback(async () => {
     try {
@@ -53,16 +74,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const res = await client.auth.me();
       if (res?.data) {
         setUser(res.data as User);
+        await loadSubscription();
       } else {
         setUser(null);
+        setSubscription(null);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setUser(null);
+      setSubscription(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadSubscription]);
 
   const login = async () => {
     if (typeof window !== 'undefined') {
@@ -94,6 +118,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     refetch: checkAuthStatus,
     isAdmin: user?.role === 'admin',
     userName,
+    subscription,
+    subscriptionLoading,
+    refetchSubscription: loadSubscription,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

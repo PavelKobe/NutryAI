@@ -37,3 +37,6 @@ sse-starlette>=1.6.0
 # monitoring
 sentry-sdk[fastapi]>=2.0.0
 
+# rate limiting
+slowapi>=0.1.9
+

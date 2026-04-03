@@ -28,8 +28,11 @@ import {
   Pencil,
   X,
   Sparkles,
+  Crown,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import UpgradeSubscriptionModal from '@/components/subscription/UpgradeSubscriptionModal';
 
 interface ProfileData {
   id: number | string;
@@ -77,12 +80,14 @@ const CUISINE_OPTIONS = [
 export default function Profile() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { subscription } = useAuth();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [savingWeight, setSavingWeight] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Editable form state
   const [form, setForm] = useState({
@@ -628,6 +633,53 @@ export default function Profile() {
           </div>
         )}
 
+        {/* Subscription Card (only in view mode) */}
+        {!editing && (
+          <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800/50">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Crown className="w-5 h-5 text-amber-400" /> Подписка
+              </h3>
+              <button
+                onClick={() => setShowUpgradeModal(true)}
+                className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+              >
+                Обновить подписку
+              </button>
+            </div>
+            {subscription ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-slate-800/50">
+                  <span className="text-xs text-slate-500 block mb-1">Тариф</span>
+                  <span className="text-sm font-medium">{subscription.plan_name}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-800/50">
+                  <span className="text-xs text-slate-500 block mb-1">Статус</span>
+                  <span className={`text-sm font-medium ${subscription.is_expired ? 'text-red-400' : 'text-emerald-400'}`}>
+                    {subscription.is_expired ? 'Истёк' : 'Активен'}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-800/50">
+                  <span className="text-xs text-slate-500 block mb-1">ИИ-запросы сегодня</span>
+                  <span className="text-sm font-medium">
+                    {subscription.ai_requests_today} / {subscription.daily_ai_limit}
+                  </span>
+                </div>
+                {subscription.expires_at && (
+                  <div className="p-3 rounded-xl bg-slate-800/50">
+                    <span className="text-xs text-slate-500 block mb-1">Действует до</span>
+                    <span className="text-sm font-medium">
+                      {new Date(subscription.expires_at).toLocaleDateString('ru-RU')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Загрузка данных подписки...</p>
+            )}
+          </div>
+        )}
+
         {/* Diet Info (only in view mode) */}
         {!editing && (
           <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800/50">
@@ -705,6 +757,12 @@ export default function Profile() {
           </p>
         </div>
       </div>
+
+      <UpgradeSubscriptionModal
+        open={showUpgradeModal}
+        onOpenChange={setShowUpgradeModal}
+        trigger="manual"
+      />
     </AppLayout>
   );
 }

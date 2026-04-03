@@ -37,10 +37,13 @@ if _sentry_dsn:
     )
 
 from core.config import settings
+from core.limiter import limiter
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRouter
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 # MODULE_IMPORTS_START
 from services.database import initialize_database, close_database
@@ -114,6 +117,10 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Rate limiting (IP-based, через slowapi)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Browser origins allowed to call the API (frontend hosts only; not the API hostname).
 _cors_origins = list(settings.parsed_cors_origins)

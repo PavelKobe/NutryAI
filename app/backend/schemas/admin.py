@@ -41,6 +41,10 @@ class AdminPaymentOut(BaseModel):
     yookassa_payment_id: Optional[str] = None
     description: Optional[str] = None
     metadata_json: Optional[Any] = None
+    billing: Optional[str] = None
+    confirmation_url: Optional[str] = None
+    paid_at: Optional[datetime] = None
+    cancellation_reason: Optional[str] = None
     captured_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

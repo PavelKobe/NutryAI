@@ -18,5 +18,10 @@ class Payment(Base):
     description = Column(Text, nullable=True)
     metadata_json = Column(JSON, nullable=True)
     captured_at = Column(DateTime(timezone=True), nullable=True)
+    # YooKassa integration fields
+    confirmation_url = Column(Text, nullable=True)
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+    billing = Column(String(16), nullable=True)          # monthly | yearly
+    cancellation_reason = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

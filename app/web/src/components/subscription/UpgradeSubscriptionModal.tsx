@@ -8,6 +8,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import { createPayment } from '@/lib/paymentsApi';
+import { Loader2 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MONTHLY_PRICE = 499;
@@ -43,6 +46,7 @@ export default function UpgradeSubscriptionModal({
   trigger = 'manual',
 }: UpgradeSubscriptionModalProps) {
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
+  const [isLoading, setIsLoading] = useState(false);
 
   const heading =
     trigger === 'limit'
@@ -58,10 +62,16 @@ export default function UpgradeSubscriptionModal({
       ? 'Ваш 7-дневный пробный период завершён. Оформите подписку для продолжения работы.'
       : 'Получите полный доступ ко всем функциям ИИ-нутрициолога.';
 
-  const handleCheckout = () => {
-    // Placeholder — будет заменён на реальный вызов YooKassa при интеграции
-    // window.location.href = `/api/v1/payments/create?plan=all_inclusive&billing=${billing}`;
-    alert(`Оформление подписки "${billing}" — в разработке. Скоро!`);
+  const handleCheckout = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      const res = await createPayment(billing);
+      window.location.href = res.confirmation_url;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка создания платежа');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -127,9 +137,11 @@ export default function UpgradeSubscriptionModal({
 
         <button
           onClick={handleCheckout}
-          className="w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-xl py-3 font-semibold transition-colors"
+          disabled={isLoading}
+          className="w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 disabled:opacity-60 text-white rounded-xl py-3 font-semibold transition-colors flex items-center justify-center gap-2"
         >
-          Оформить All Inclusive
+          {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+          {isLoading ? 'Подождите...' : 'Оформить All Inclusive'}
         </button>
 
         <p className="text-center text-xs text-slate-600">

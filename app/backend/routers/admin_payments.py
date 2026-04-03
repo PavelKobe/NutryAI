@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from models.payment import Payment
 from schemas.admin import AdminPaymentListResponse, AdminPaymentOut
 from schemas.auth import UserResponse
+from services.yookassa_service import YooKassaService
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -48,7 +49,7 @@ async def capture_payment(
     _admin: UserResponse = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """DB-only capture until YooKassa is wired: pending/waiting_for_capture -> succeeded."""
+    """Захватывает двухстадийный платёж через YooKassa API."""
     row = (await db.execute(select(Payment).where(Payment.id == payment_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
@@ -57,6 +58,19 @@ async def capture_payment(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Cannot capture payment in status {row.status!r}",
         )
+    if not row.yookassa_payment_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Payment has no yookassa_payment_id",
+        )
+    try:
+        yk_service = YooKassaService()
+        await yk_service.capture_payment(row.yookassa_payment_id, row.amount_value)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"YooKassa capture failed: {exc}",
+        ) from exc
     row.status = "succeeded"
     row.captured_at = datetime.now(timezone.utc)
     await db.commit()
@@ -70,7 +84,7 @@ async def refund_payment(
     _admin: UserResponse = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """DB-only refund until YooKassa is wired: succeeded -> refunded."""
+    """Создаёт возврат через YooKassa API."""
     row = (await db.execute(select(Payment).where(Payment.id == payment_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
@@ -79,6 +93,19 @@ async def refund_payment(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Cannot refund payment in status {row.status!r}",
         )
+    if not row.yookassa_payment_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Payment has no yookassa_payment_id",
+        )
+    try:
+        yk_service = YooKassaService()
+        await yk_service.create_refund(row.yookassa_payment_id, row.amount_value)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"YooKassa refund failed: {exc}",
+        ) from exc
     row.status = "refunded"
     await db.commit()
     await db.refresh(row)

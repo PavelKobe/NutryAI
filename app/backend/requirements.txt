@@ -40,3 +40,6 @@ sentry-sdk[fastapi]>=2.0.0
 # rate limiting
 slowapi>=0.1.9
 
+# payments
+yookassa>=3.0.0
+

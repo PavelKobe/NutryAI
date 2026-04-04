@@ -30,6 +30,7 @@ const QUICK_QUESTIONS = [
 function parseSubscriptionError(message?: string): UpgradeTrigger | null {
   if (!message) return null;
   const lower = message.toLowerCase();
+  if (lower.includes('subscription_expired') || lower.includes('срок подписки')) return 'subscription_expired';
   if (lower.includes('trial_expired') || lower.includes('пробный период')) return 'trial_expired';
   if (lower.includes('daily_limit_exceeded') || lower.includes('дневной лимит')) return 'limit';
   if (lower.includes('429')) return 'limit';
@@ -156,12 +157,16 @@ export default function Chat() {
           const body = error.body as { detail?: { error?: string } } | undefined;
           const errorCode = body?.detail?.error;
 
-          if (errorCode === 'daily_limit_exceeded' || error.status === 429) {
-            handleSubscriptionError('limit');
+          if (errorCode === 'subscription_expired') {
+            handleSubscriptionError('subscription_expired');
             return;
           }
           if (errorCode === 'trial_expired') {
             handleSubscriptionError('trial_expired');
+            return;
+          }
+          if (errorCode === 'daily_limit_exceeded' || error.status === 429) {
+            handleSubscriptionError('limit');
             return;
           }
 

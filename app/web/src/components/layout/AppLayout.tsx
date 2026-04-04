@@ -1,10 +1,11 @@
 'use client';
 
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import BottomNav from './BottomNav';
 import { User, LogOut } from 'lucide-react';
+import UpgradeSubscriptionModal from '@/components/subscription/UpgradeSubscriptionModal';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -14,7 +15,9 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children, title }: AppLayoutProps) {
   const router = useRouter();
-  const { user, loading, logout: authLogout } = useAuth();
+  const { user, loading, logout: authLogout, subscription, subscriptionLoading } = useAuth();
+  const [showExpiryModal, setShowExpiryModal] = useState(false);
+  const [expiryShown, setExpiryShown] = useState(false);
 
   // Redirect to landing if not authenticated (once loading is done)
   useEffect(() => {
@@ -22,6 +25,14 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
       router.push('/');
     }
   }, [loading, user, router]);
+
+  // Show upgrade modal once per session when subscription is expired
+  useEffect(() => {
+    if (!subscriptionLoading && subscription?.status === 'expired' && !expiryShown) {
+      setExpiryShown(true);
+      setShowExpiryModal(true);
+    }
+  }, [subscription, subscriptionLoading, expiryShown]);
 
   const handleLogout = async () => {
     await authLogout();
@@ -76,6 +87,13 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
 
       {/* Bottom Navigation */}
       <BottomNav />
+
+      {/* Global expired subscription modal */}
+      <UpgradeSubscriptionModal
+        open={showExpiryModal}
+        onOpenChange={setShowExpiryModal}
+        trigger="subscription_expired"
+      />
     </div>
   );
 }

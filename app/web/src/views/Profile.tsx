@@ -761,7 +761,7 @@ export default function Profile() {
       <UpgradeSubscriptionModal
         open={showUpgradeModal}
         onOpenChange={setShowUpgradeModal}
-        trigger="manual"
+        trigger={subscription?.status === 'expired' ? 'subscription_expired' : 'manual'}
       />
     </AppLayout>
   );

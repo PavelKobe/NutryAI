@@ -57,6 +57,7 @@ export default function AdminSubscriptionsPage() {
   const [activatingUserId, setActivatingUserId] = useState<string | null>(null);
   const [formPlanId, setFormPlanId] = useState('');
   const [formExpiresAt, setFormExpiresAt] = useState('');
+  const [formPeriod, setFormPeriod] = useState<'monthly' | 'yearly' | 'custom' | 'unlimited'>('monthly');
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['admin-subscriptions', skip, statusFilter],
@@ -89,10 +90,28 @@ export default function AdminSubscriptionsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  function handlePeriodChange(period: 'monthly' | 'yearly' | 'custom' | 'unlimited') {
+    setFormPeriod(period);
+    const d = new Date();
+    if (period === 'monthly') {
+      d.setDate(d.getDate() + 30);
+      setFormExpiresAt(d.toISOString().split('T')[0]);
+    } else if (period === 'yearly') {
+      d.setDate(d.getDate() + 365);
+      setFormExpiresAt(d.toISOString().split('T')[0]);
+    } else if (period === 'unlimited') {
+      setFormExpiresAt('');
+    }
+    // 'custom' → keep current value, show datepicker
+  }
+
   function openActivate(userId: string, currentPlanId: string) {
     setActivatingUserId(userId);
     setFormPlanId(currentPlanId);
-    setFormExpiresAt('');
+    setFormPeriod('monthly');
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    setFormExpiresAt(d.toISOString().split('T')[0]);
   }
 
   function saveActivate() {
@@ -225,14 +244,32 @@ export default function AdminSubscriptionsPage() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Срок действия (необязательно)</Label>
-              <Input
-                type="date"
-                value={formExpiresAt}
-                onChange={(e) => setFormExpiresAt(e.target.value)}
-                className="border-slate-700 bg-slate-900"
-              />
-              <p className="text-xs text-slate-500">Оставьте пустым для бессрочной подписки</p>
+              <Label>Срок действия</Label>
+              <Select value={formPeriod} onValueChange={(v) => handlePeriodChange(v as 'monthly' | 'yearly' | 'custom' | 'unlimited')}>
+                <SelectTrigger className="border-slate-700 bg-slate-900">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">1 месяц (+30 дней)</SelectItem>
+                  <SelectItem value="yearly">1 год (+365 дней)</SelectItem>
+                  <SelectItem value="custom">Произвольная дата</SelectItem>
+                  <SelectItem value="unlimited">Бессрочно</SelectItem>
+                </SelectContent>
+              </Select>
+              {formPeriod === 'custom' && (
+                <Input
+                  type="date"
+                  value={formExpiresAt}
+                  onChange={(e) => setFormExpiresAt(e.target.value)}
+                  className="mt-2 border-slate-700 bg-slate-900"
+                />
+              )}
+              {formPeriod !== 'unlimited' && formExpiresAt && formPeriod !== 'custom' && (
+                <p className="text-xs text-slate-500">Истекает: {new Date(formExpiresAt).toLocaleDateString('ru-RU')}</p>
+              )}
+              {formPeriod === 'unlimited' && (
+                <p className="text-xs text-slate-500">Подписка без даты истечения</p>
+              )}
             </div>
           </div>
           <DialogFooter>

@@ -73,7 +73,8 @@ class SubscriptionService:
         Проверяет и инкрементирует счётчик AI-запросов.
 
         Raises:
-            HTTP 429 с detail.error == 'trial_expired'       — Free план истёк
+            HTTP 429 с detail.error == 'subscription_expired' — платная подписка истекла
+            HTTP 429 с detail.error == 'trial_expired'        — Free-период истёк
             HTTP 429 с detail.error == 'daily_limit_exceeded' — дневной лимит исчерпан
             HTTP 403 с detail.error == 'no_subscription'      — подписка не найдена
         """
@@ -106,10 +107,31 @@ class SubscriptionService:
             sub.ai_requests_today = 0
             sub.requests_date = today
 
-        # Проверка срока действия Free-плана
-        if sub.plan_id == FREE_PLAN_ID and sub.expires_at is not None:
-            now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=timezone.utc)
+
+        # Платный план истёк → авто-даунгрейд на Free + блокировка ИИ
+        if sub.plan_id != FREE_PLAN_ID and sub.expires_at is not None:
             if now > sub.expires_at:
+                await self._downgrade_to_free(user_id)
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail={
+                        "error": "subscription_expired",
+                        "message": "Требуется обновить подписку до All Inclusive.",
+                    },
+                )
+
+        # Free план: trial_expired (новый) или subscription_expired (после даунгрейда)
+        if sub.plan_id == FREE_PLAN_ID and sub.expires_at is not None:
+            if now > sub.expires_at:
+                if sub.status == "expired":
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail={
+                            "error": "subscription_expired",
+                            "message": "Требуется обновить подписку до All Inclusive.",
+                        },
+                    )
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     detail={
@@ -250,6 +272,22 @@ class SubscriptionService:
             select(UserSubscription).where(UserSubscription.user_id == user_id)
         )
         return result.scalar_one()
+
+    async def _downgrade_to_free(self, user_id: str) -> None:
+        """Переводит истёкшую платную подписку на Free с сохранением expires_at для истории."""
+        today = date.today()
+        await self.db.execute(
+            update(UserSubscription)
+            .where(UserSubscription.user_id == user_id)
+            .values(
+                plan_id=FREE_PLAN_ID,
+                status="expired",
+                ai_requests_today=0,
+                requests_date=today,
+            )
+        )
+        await self.db.commit()
+        logger.info("Auto-downgraded user %s to Free (subscription expired)", user_id)
 
     async def deactivate_subscription(self, user_id: str) -> None:
         """Отменяет подписку пользователя (admin action)."""

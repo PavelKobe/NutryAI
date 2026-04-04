@@ -27,7 +27,7 @@ const FALLBACK_FEATURES = [
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export type UpgradeTrigger = 'limit' | 'trial_expired' | 'manual';
+export type UpgradeTrigger = 'limit' | 'trial_expired' | 'subscription_expired' | 'manual';
 
 interface UpgradeSubscriptionModalProps {
   open: boolean;
@@ -41,7 +41,9 @@ export default function UpgradeSubscriptionModal({
   onOpenChange,
   trigger = 'manual',
 }: UpgradeSubscriptionModalProps) {
-  const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
+  const [billing, setBilling] = useState<'monthly' | 'yearly'>(
+    trigger === 'subscription_expired' ? 'yearly' : 'monthly'
+  );
   const [isLoading, setIsLoading] = useState(false);
   const { plans } = useAuth();
 
@@ -58,6 +60,8 @@ export default function UpgradeSubscriptionModal({
       ? 'Дневной лимит исчерпан'
       : trigger === 'trial_expired'
       ? 'Пробный период завершён'
+      : trigger === 'subscription_expired'
+      ? 'Требуется All Inclusive'
       : 'All Inclusive';
 
   const description =
@@ -65,6 +69,8 @@ export default function UpgradeSubscriptionModal({
       ? 'Вы использовали все 20 ИИ-запросов на сегодня. Оформите All Inclusive, чтобы продолжить.'
       : trigger === 'trial_expired'
       ? 'Ваш 7-дневный пробный период завершён. Оформите подписку для продолжения работы.'
+      : trigger === 'subscription_expired'
+      ? 'Для использования ИИ-нутрициолога требуется подписка All Inclusive. Перейдите на годовой план и сэкономьте.'
       : 'Получите полный доступ ко всем функциям ИИ-нутрициолога.';
 
   const handleCheckout = async () => {

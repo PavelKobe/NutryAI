@@ -5,7 +5,7 @@ Subscription models: SubscriptionPlan and UserSubscription.
 import uuid
 
 from models.base import Base
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, JSON, Numeric, String
 from sqlalchemy.sql import func
 
 
@@ -18,6 +18,7 @@ class SubscriptionPlan(Base):
     price_yearly = Column(Numeric(10, 2), nullable=True)    # NULL for free
     daily_ai_limit = Column(Integer, nullable=False)         # requests per day
     trial_days = Column(Integer, nullable=True)              # 7 for free, NULL for paid
+    features = Column(JSON, nullable=True)                   # [{"text": "...", "included": true}]
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 

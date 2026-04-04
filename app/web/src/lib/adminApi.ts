@@ -67,6 +67,56 @@ export interface AdminUserPatch {
   is_active?: boolean;
 }
 
+// ── Subscription types ─────────────────────────────────────────────────────────
+
+export interface PlanFeature {
+  text: string;
+  included: boolean;
+}
+
+export interface AdminSubscription {
+  user_id: string;
+  user_email: string;
+  plan_id: string;
+  plan_name: string;
+  status: string;
+  started_at: string;
+  expires_at: string | null;
+  ai_requests_today: number;
+  daily_ai_limit: number;
+  requests_date: string;
+}
+
+export interface AdminSubscriptionListResponse {
+  items: AdminSubscription[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+export interface AdminSubscriptionActivate {
+  plan_id: string;
+  expires_at?: string | null;
+}
+
+export interface AdminPlan {
+  id: string;
+  name: string;
+  price_monthly: string | null;
+  price_yearly: string | null;
+  daily_ai_limit: number;
+  trial_days: number | null;
+  features: PlanFeature[] | null;
+}
+
+export interface AdminPlanPatch {
+  name?: string;
+  price_monthly?: number | null;
+  price_yearly?: number | null;
+  daily_ai_limit?: number;
+  features?: PlanFeature[];
+}
+
 export interface AdminPayment {
   id: string;
   user_id: string;
@@ -251,5 +301,61 @@ export async function adminRefundPayment(id: string): Promise<AdminPayment> {
   if (status !== 200) {
     throw new Error(apiErrorMessage(data, 'Refund failed'));
   }
+  return data;
+}
+
+// ── Subscription management ────────────────────────────────────────────────────
+
+export async function adminListSubscriptions(params: {
+  skip?: number;
+  limit?: number;
+  plan_id?: string;
+  status?: string;
+}): Promise<AdminSubscriptionListResponse> {
+  const api = getAdminApi();
+  const { data, status } = await api.get<AdminSubscriptionListResponse>(
+    '/api/v1/admin/subscriptions',
+    { params }
+  );
+  if (status !== 200) throw new Error('Failed to load subscriptions');
+  return data;
+}
+
+export async function adminActivateSubscription(
+  userId: string,
+  body: AdminSubscriptionActivate
+): Promise<AdminSubscription> {
+  const api = getAdminApi();
+  const { data, status } = await api.post<AdminSubscription>(
+    `/api/v1/admin/subscriptions/${userId}/activate`,
+    body
+  );
+  if (status !== 200) throw new Error(apiErrorMessage(data, 'Activate failed'));
+  return data;
+}
+
+export async function adminDeactivateSubscription(userId: string): Promise<AdminSubscription> {
+  const api = getAdminApi();
+  const { data, status } = await api.post<AdminSubscription>(
+    `/api/v1/admin/subscriptions/${userId}/deactivate`,
+    {}
+  );
+  if (status !== 200) throw new Error(apiErrorMessage(data, 'Deactivate failed'));
+  return data;
+}
+
+// ── Plan management ────────────────────────────────────────────────────────────
+
+export async function adminListPlans(): Promise<AdminPlan[]> {
+  const api = getAdminApi();
+  const { data, status } = await api.get<AdminPlan[]>('/api/v1/admin/plans');
+  if (status !== 200) throw new Error('Failed to load plans');
+  return data;
+}
+
+export async function adminPatchPlan(planId: string, body: AdminPlanPatch): Promise<AdminPlan> {
+  const api = getAdminApi();
+  const { data, status } = await api.patch<AdminPlan>(`/api/v1/admin/plans/${planId}`, body);
+  if (status !== 200) throw new Error(apiErrorMessage(data, 'Update failed'));
   return data;
 }

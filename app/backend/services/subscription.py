@@ -189,8 +189,9 @@ class SubscriptionService:
         self,
         user_id: str,
         plan_id: str,
-        payment_id: str,
-        billing: str,  # "monthly" | "yearly"
+        payment_id: Optional[str],
+        billing: str = "monthly",  # "monthly" | "yearly"
+        expires_at: Optional[datetime] = None,  # None = бессрочно (по умолчанию для платных)
     ) -> UserSubscription:
         """
         Активирует платную подписку после успешного платежа YooKassa.
@@ -213,7 +214,7 @@ class SubscriptionService:
                     plan_id=plan_id,
                     status="active",
                     started_at=now,
-                    expires_at=None,
+                    expires_at=expires_at,
                     ai_requests_today=0,
                     requests_date=now.date(),
                     payment_id=payment_id,
@@ -228,7 +229,7 @@ class SubscriptionService:
                         (id, user_id, plan_id, status, started_at, expires_at,
                          ai_requests_today, requests_date, payment_id)
                     VALUES
-                        (:id, :user_id, :plan_id, 'active', :started_at, NULL,
+                        (:id, :user_id, :plan_id, 'active', :started_at, :expires_at,
                          0, :requests_date, :payment_id)
                     """
                 ),
@@ -237,6 +238,7 @@ class SubscriptionService:
                     "user_id": user_id,
                     "plan_id": plan_id,
                     "started_at": now,
+                    "expires_at": expires_at,
                     "requests_date": now.date(),
                     "payment_id": payment_id,
                 },
@@ -248,6 +250,15 @@ class SubscriptionService:
             select(UserSubscription).where(UserSubscription.user_id == user_id)
         )
         return result.scalar_one()
+
+    async def deactivate_subscription(self, user_id: str) -> None:
+        """Отменяет подписку пользователя (admin action)."""
+        await self.db.execute(
+            update(UserSubscription)
+            .where(UserSubscription.user_id == user_id)
+            .values(status="cancelled")
+        )
+        await self.db.commit()
 
     # ──────────────────────────────────────────────────────────────────────
     # Helpers

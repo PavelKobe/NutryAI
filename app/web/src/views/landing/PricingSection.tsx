@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { fetchPlans, type SubscriptionPlan } from '@/lib/subscriptionApi';
 
-const freeFeatures = [
+// ─── Fallback data (shown while API loads or on error) ────────────────────────
+const FALLBACK_FREE_FEATURES = [
   { text: '7 дней бесплатно', included: true },
   { text: 'Дневник питания', included: true },
   { text: 'База данных 500K+ блюд', included: true },
@@ -15,16 +17,15 @@ const freeFeatures = [
   { text: 'Приоритетная поддержка', included: false },
 ];
 
-const premiumFeatures = [
+const FALLBACK_PREMIUM_FEATURES = [
   { text: 'Безлимитный дневник питания', included: true },
   { text: 'Безлимитное распознавание по фото', included: true },
   { text: 'База данных 2M+ блюд', included: true },
   { text: 'Расширенная аналитика и экспорт PDF', included: true },
-  { text: 'Безлимитный ИИ-чат', included: true },
+  { text: '100 ИИ-запросов в день', included: true },
   { text: 'Персональный план питания', included: true },
   { text: 'Генерация рецептов под цели', included: true },
   { text: 'Трекинг воды и микронутриентов', included: true },
-  { text: 'Интеграция с Apple Health / Google Fit', included: true },
   { text: 'Приоритетная поддержка 24/7', included: true },
 ];
 
@@ -64,6 +65,7 @@ export default function PricingSection() {
   const [isVisible, setIsVisible] = useState(false);
   const [isYearly, setIsYearly] = useState(false);
   const [hoveredCard, setHoveredCard] = useState<'free' | 'premium' | null>(null);
+  const [apiPlans, setApiPlans] = useState<SubscriptionPlan[] | null>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -74,9 +76,18 @@ export default function PricingSection() {
     return () => observer.disconnect();
   }, []);
 
-  const monthlyPrice = 499;
-  const yearlyPrice = 3990;
-  const yearlyPerMonth = Math.round(yearlyPrice / 12); // 332₽/мес
+  useEffect(() => {
+    fetchPlans().then(setApiPlans).catch(() => setApiPlans(null));
+  }, []);
+
+  const freePlan = apiPlans?.find((p) => p.id === 'plan_free_v1');
+  const paidPlan = apiPlans?.find((p) => p.id === 'plan_all_inclusive_v1');
+
+  const freeFeatures = freePlan?.features ?? FALLBACK_FREE_FEATURES;
+  const premiumFeatures = paidPlan?.features ?? FALLBACK_PREMIUM_FEATURES;
+  const monthlyPrice = paidPlan?.price_monthly ? Number(paidPlan.price_monthly) : 499;
+  const yearlyPrice = paidPlan?.price_yearly ? Number(paidPlan.price_yearly) : 3990;
+  const yearlyPerMonth = Math.round(yearlyPrice / 12);
 
   return (
     <section
@@ -176,7 +187,7 @@ export default function PricingSection() {
                   color: isYearly ? '#000' : '#00e676',
                 }}
               >
-                −33%
+                −{Math.round(((monthlyPrice * 12 - yearlyPrice) / (monthlyPrice * 12)) * 100)}%
               </span>
             </button>
           </div>

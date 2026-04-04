@@ -47,6 +47,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           <Link href="/admin/payments" className="text-slate-300 hover:text-white hover:underline">
             Платежи
           </Link>
+          <Link href="/admin/subscriptions" className="text-slate-300 hover:text-white hover:underline">
+            Подписки
+          </Link>
+          <Link href="/admin/plans" className="text-slate-300 hover:text-white hover:underline">
+            Тарифы
+          </Link>
         </nav>
         <button
           type="button"

@@ -9,6 +9,7 @@ import React, {
 import { client } from '@/lib/api';
 import {
   fetchSubscriptionStatus,
+  SubscriptionPlan,
   UserSubscriptionStatus,
 } from '@/lib/subscriptionApi';
 
@@ -30,6 +31,7 @@ interface AuthContextType {
   isAdmin: boolean;
   userName: string;
   subscription: UserSubscriptionStatus | null;
+  plans: SubscriptionPlan[];
   subscriptionLoading: boolean;
   refetchSubscription: () => Promise<void>;
 }
@@ -53,6 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<UserSubscriptionStatus | null>(null);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
   const loadSubscription = useCallback(async () => {
@@ -60,8 +63,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const data = await fetchSubscriptionStatus();
       setSubscription(data.subscription);
+      setPlans(data.plans);
     } catch {
       setSubscription(null);
+      setPlans([]);
     } finally {
       setSubscriptionLoading(false);
     }
@@ -78,11 +83,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         setUser(null);
         setSubscription(null);
+        setPlans([]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setUser(null);
       setSubscription(null);
+      setPlans([]);
     } finally {
       setLoading(false);
     }
@@ -119,6 +126,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAdmin: user?.role === 'admin',
     userName,
     subscription,
+    plans,
     subscriptionLoading,
     refetchSubscription: loadSubscription,
   };

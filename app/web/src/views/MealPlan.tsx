@@ -22,6 +22,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import UpgradeSubscriptionModal, { type UpgradeTrigger } from '@/components/subscription/UpgradeSubscriptionModal';
 import {
   Dialog,
   DialogContent,
@@ -98,6 +99,8 @@ export default function MealPlan() {
   const [planLoggedMeals, setPlanLoggedMeals] = useState<Record<string, number>>({});
   const [savingCheckbox, setSavingCheckbox] = useState<string | null>(null);
   const [activePlanId, setActivePlanId] = useState<number | null>(null);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitTrigger, setLimitTrigger] = useState<UpgradeTrigger>('limit');
   const [mealEditorOpen, setMealEditorOpen] = useState(false);
   const [editDayIndex, setEditDayIndex] = useState(0);
   const [editMealIndex, setEditMealIndex] = useState(0);
@@ -107,6 +110,11 @@ export default function MealPlan() {
   const [editFat, setEditFat] = useState('');
   const [editCarbs, setEditCarbs] = useState('');
   const [editCookingTime, setEditCookingTime] = useState('');
+
+  const handleSubscriptionError = (trigger: UpgradeTrigger) => {
+    setLimitTrigger(trigger);
+    setShowLimitModal(true);
+  };
 
   const persistPlan = useCallback(async (nextPlan: DayPlan[]): Promise<boolean> => {
     if (activePlanId == null) return false;
@@ -395,7 +403,12 @@ export default function MealPlan() {
             toast.error('Ошибка парсинга плана. Попробуйте ещё раз.');
           }
         },
-        onError: (error: { message?: string }) => {
+        onError: (error: { message?: string; status?: number; body?: unknown }) => {
+          const body = error.body as { detail?: { error?: string } } | undefined;
+          const errorCode = body?.detail?.error;
+          if (errorCode === 'subscription_expired') { handleSubscriptionError('subscription_expired'); return; }
+          if (errorCode === 'trial_expired') { handleSubscriptionError('trial_expired'); return; }
+          if (errorCode === 'daily_limit_exceeded' || error.status === 429) { handleSubscriptionError('limit'); return; }
           toast.error(error?.message || 'Ошибка генерации плана');
         },
       });
@@ -529,7 +542,12 @@ export default function MealPlan() {
             toast.error('Не удалось сохранить рецепт');
           }
         },
-        onError: (error: { message?: string }) => {
+        onError: (error: { message?: string; status?: number; body?: unknown }) => {
+          const body = error.body as { detail?: { error?: string } } | undefined;
+          const errorCode = body?.detail?.error;
+          if (errorCode === 'subscription_expired') { handleSubscriptionError('subscription_expired'); return; }
+          if (errorCode === 'trial_expired') { handleSubscriptionError('trial_expired'); return; }
+          if (errorCode === 'daily_limit_exceeded' || error.status === 429) { handleSubscriptionError('limit'); return; }
           toast.error(error?.message || 'Ошибка генерации рецепта');
         },
       });
@@ -803,6 +821,12 @@ export default function MealPlan() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <UpgradeSubscriptionModal
+        open={showLimitModal}
+        onOpenChange={setShowLimitModal}
+        trigger={limitTrigger}
+      />
     </AppLayout>
   );
 }

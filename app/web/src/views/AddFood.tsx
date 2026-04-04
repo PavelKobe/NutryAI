@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Camera, Pencil, Sparkles, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import UpgradeSubscriptionModal, { type UpgradeTrigger } from '@/components/subscription/UpgradeSubscriptionModal';
 
 const BUCKET_NAME = 'colorio-image';
 const PHOTO_RETENTION_DAYS = 7;
@@ -90,7 +91,14 @@ export default function AddFood() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitTrigger, setLimitTrigger] = useState<UpgradeTrigger>('limit');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubscriptionError = (trigger: UpgradeTrigger) => {
+    setLimitTrigger(trigger);
+    setShowLimitModal(true);
+  };
 
   // Manual entry state
   const [manual, setManual] = useState({
@@ -160,8 +168,13 @@ export default function AddFood() {
       } catch {
         toast.error('Не удалось распознать блюдо');
       }
-    } catch {
-      toast.error('Ошибка при обработке фото');
+    } catch (err: unknown) {
+      const body = (err as { body?: { detail?: { error?: string } } })?.body;
+      const errorCode = body?.detail?.error;
+      if (errorCode === 'subscription_expired') { handleSubscriptionError('subscription_expired'); }
+      else if (errorCode === 'trial_expired') { handleSubscriptionError('trial_expired'); }
+      else if (errorCode === 'daily_limit_exceeded') { handleSubscriptionError('limit'); }
+      else { toast.error('Ошибка при обработке фото'); }
     } finally {
       setRecognizing(false);
     }
@@ -449,6 +462,12 @@ export default function AddFood() {
           </div>
         )}
       </div>
+
+      <UpgradeSubscriptionModal
+        open={showLimitModal}
+        onOpenChange={setShowLimitModal}
+        trigger={limitTrigger}
+      />
     </AppLayout>
   );
 }

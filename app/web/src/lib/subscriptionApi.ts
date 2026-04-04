@@ -21,6 +21,11 @@ function authHeaders(): HeadersInit {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export interface PlanFeature {
+  text: string;
+  included: boolean;
+}
+
 export interface SubscriptionPlan {
   id: string;
   name: string;
@@ -28,6 +33,7 @@ export interface SubscriptionPlan {
   price_yearly: number | null;
   daily_ai_limit: number;
   trial_days: number | null;
+  features: PlanFeature[] | null;
 }
 
 export interface UserSubscriptionStatus {

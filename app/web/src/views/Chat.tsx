@@ -132,7 +132,7 @@ export default function Chat() {
           ...chatHistory,
           { role: 'user', content: text.trim() },
         ],
-        model: 'google/gemini-2.5-pro-preview-03-25',
+        model: 'claude-4-5-sonnet',
         stream: true,
         onChunk: (chunk: { content?: string }) => {
           fullResponse += chunk.content || '';

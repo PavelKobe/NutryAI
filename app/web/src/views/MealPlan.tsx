@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { client } from '@/lib/api';
@@ -20,6 +20,7 @@ import {
   Bookmark,
   BookmarkCheck,
   Pencil,
+  BookOpen,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import UpgradeSubscriptionModal, { type UpgradeTrigger } from '@/components/subscription/UpgradeSubscriptionModal';
@@ -32,6 +33,9 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 interface MealPlanData {
   id?: number;
@@ -101,6 +105,12 @@ export default function MealPlan() {
   const [activePlanId, setActivePlanId] = useState<number | null>(null);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitTrigger, setLimitTrigger] = useState<UpgradeTrigger>('limit');
+  const [regeneratingMeal, setRegeneratingMeal] = useState<string | null>(null);
+  const [recipeViewerOpen, setRecipeViewerOpen] = useState(false);
+  const [recipeViewerDay, setRecipeViewerDay] = useState(0);
+  const [recipeViewerMeal, setRecipeViewerMeal] = useState(0);
+  const [generatingForViewer, setGeneratingForViewer] = useState<string | null>(null);
+  const planRef = useRef<DayPlan[] | null>(null);
   const [mealEditorOpen, setMealEditorOpen] = useState(false);
   const [editDayIndex, setEditDayIndex] = useState(0);
   const [editMealIndex, setEditMealIndex] = useState(0);
@@ -455,6 +465,86 @@ export default function MealPlan() {
     }
   };
 
+  const regenerateMeal = async (dayIndex: number, mealIndex: number) => {
+    if (!plan) return;
+    const meal = plan[dayIndex]?.meals?.[mealIndex];
+    if (!meal) return;
+    const key = `${dayIndex}-${mealIndex}`;
+    setRegeneratingMeal(key);
+    try {
+      const profileRes = await client.entities.user_profiles.query({ limit: 1 });
+      const p = (profileRes?.data?.items ?? profileRes?.data)?.[0];
+      if (!p) { toast.error('Сначала заполните профиль'); return; }
+
+      let responseText = '';
+      await client.ai.gentxt({
+        messages: [
+          { role: 'system', content: 'Ты — профессиональный нутрициолог. Отвечай ТОЛЬКО валидным JSON без markdown-обёрток.' },
+          {
+            role: 'user',
+            content: `Предложи одно альтернативное блюдо для типа "${MEAL_LABELS[meal.type] || meal.type}".
+Параметры: цель — ${p.goal}, аллергии — ${p.allergies || 'нет'}, кухня — ${p.cuisine_preferences || 'Русская'}.
+Верни ТОЛЬКО JSON: {"type":"${meal.type}","name":"Название","calories":350,"protein":20,"fat":12,"carbs":40,"cooking_time":15}`,
+          },
+        ],
+        model: 'openai/gpt-4o-mini',
+        stream: true,
+        onChunk: (chunk: { content?: string }) => { responseText += chunk.content || ''; },
+        onComplete: async () => {
+          try {
+            const jsonStr = responseText.trim().match(/\{[\s\S]*\}/)?.[0] ?? responseText;
+            const newMeal: MealItem = JSON.parse(jsonStr);
+            const updatedPlan = plan.map((day, di) =>
+              di !== dayIndex ? day : {
+                ...day,
+                meals: day.meals.map((m, mi) =>
+                  mi === mealIndex ? { ...newMeal, image_url: undefined, recipe: undefined } : m
+                ),
+              }
+            );
+            setPlan(updatedPlan);
+            setSavedRecipes((prev) => { const s = new Set(prev); s.delete(key); return s; });
+            setPlanLoggedMeals((prev) => { const n = { ...prev }; delete n[key]; return n; });
+            const ok = await persistPlan(updatedPlan);
+            if (ok) toast.success(`Блюдо заменено на «${newMeal.name}»`);
+          } catch { toast.error('Не удалось разобрать ответ ИИ'); }
+        },
+        onError: (error: { message?: string; status?: number; body?: unknown }) => {
+          const errorCode = (error.body as { detail?: { error?: string } })?.detail?.error;
+          if (errorCode === 'subscription_expired') { handleSubscriptionError('subscription_expired'); return; }
+          if (errorCode === 'trial_expired') { handleSubscriptionError('trial_expired'); return; }
+          if (errorCode === 'daily_limit_exceeded' || error.status === 429) { handleSubscriptionError('limit'); return; }
+          toast.error(error?.message || 'Ошибка генерации блюда');
+        },
+      });
+    } catch { toast.error('Не удалось заменить блюдо'); }
+    finally { setRegeneratingMeal(null); }
+  };
+
+  const openRecipeViewer = async (dayIndex: number, mealIndex: number) => {
+    const meal = plan?.[dayIndex]?.meals?.[mealIndex];
+    if (!meal) return;
+
+    if (meal.recipe) {
+      setRecipeViewerDay(dayIndex);
+      setRecipeViewerMeal(mealIndex);
+      setRecipeViewerOpen(true);
+      return;
+    }
+
+    const key = `${dayIndex}-${mealIndex}`;
+    setGeneratingForViewer(key);
+    await generateRecipeForMeal(dayIndex, mealIndex);
+    setGeneratingForViewer(null);
+
+    const latestMeal = planRef.current?.[dayIndex]?.meals?.[mealIndex];
+    if (!latestMeal?.recipe) return;
+
+    setRecipeViewerDay(dayIndex);
+    setRecipeViewerMeal(mealIndex);
+    setRecipeViewerOpen(true);
+  };
+
   // Генерация подробного рецепта для блюда
   const generateRecipeForMeal = async (dayIndex: number, mealIndex: number) => {
     const meal = plan?.[dayIndex]?.meals?.[mealIndex];
@@ -557,6 +647,8 @@ export default function MealPlan() {
       setSavingRecipe(null);
     }
   };
+
+  planRef.current = plan;
 
   if (loading) {
     return (
@@ -674,6 +766,28 @@ export default function MealPlan() {
                           title="Изменить блюдо"
                         >
                           <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void regenerateMeal(selectedDay, i)}
+                          disabled={regeneratingMeal === imgKey || !!savingRecipe || generating}
+                          className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-500 hover:text-violet-400 transition-colors disabled:opacity-50"
+                          title="Заменить блюдо"
+                        >
+                          {regeneratingMeal === imgKey
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <RefreshCw className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void openRecipeViewer(selectedDay, i)}
+                          disabled={generatingForViewer === imgKey || savingRecipe === imgKey}
+                          className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-500 hover:text-amber-400 transition-colors disabled:opacity-50"
+                          title={meal.recipe ? 'Смотреть рецепт' : 'Получить рецепт'}
+                        >
+                          {generatingForViewer === imgKey
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <BookOpen className="w-3.5 h-3.5" />}
                         </button>
                         <button
                           onClick={() => saveRecipe(selectedDay, i)}
@@ -821,6 +935,83 @@ export default function MealPlan() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {(() => {
+        const vm = plan?.[recipeViewerDay]?.meals?.[recipeViewerMeal];
+        const ingredients = vm?.recipe?.ingredients?.split('\n').filter(Boolean) ?? [];
+        const instructions = vm?.recipe?.instructions?.split('\n').filter(Boolean) ?? [];
+        return (
+          <Sheet open={recipeViewerOpen} onOpenChange={setRecipeViewerOpen}>
+            <SheetContent side="right" className="w-full sm:max-w-lg bg-slate-950 border-slate-800 text-slate-100 p-0 flex flex-col">
+              <SheetHeader className="px-6 pt-6 pb-4 border-b border-slate-800">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-lg">{MEAL_EMOJI[vm?.type ?? ''] || '🍽️'}</span>
+                  <span className="text-xs text-slate-400 uppercase tracking-wide">{MEAL_LABELS[vm?.type ?? ''] || vm?.type}</span>
+                </div>
+                <SheetTitle className="text-white text-xl leading-tight">{vm?.name}</SheetTitle>
+                <div className="flex items-center gap-4 text-xs mt-2">
+                  <span className="flex items-center gap-1 text-orange-400"><Flame className="w-3 h-3" />{vm?.calories} ккал</span>
+                  <span className="text-red-400">Б {vm?.protein}г</span>
+                  <span className="text-amber-400">Ж {vm?.fat}г</span>
+                  <span className="text-blue-400">У {vm?.carbs}г</span>
+                  <span className="flex items-center gap-1 text-slate-500"><Clock className="w-3 h-3" />{vm?.cooking_time} мин</span>
+                </div>
+              </SheetHeader>
+              <ScrollArea className="flex-1 px-6 py-4">
+                <div className="space-y-5">
+                  {ingredients.length > 0 && (
+                    <section>
+                      <h3 className="text-sm font-semibold text-emerald-400 mb-2 uppercase tracking-wide">Ингредиенты</h3>
+                      <ul className="space-y-1.5">
+                        {ingredients.map((item, idx) => (
+                          <li key={idx} className="flex items-start gap-2 text-sm text-slate-300">
+                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />{item}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                  {instructions.length > 0 && (
+                    <>
+                      <Separator className="bg-slate-800" />
+                      <section>
+                        <h3 className="text-sm font-semibold text-sky-400 mb-2 uppercase tracking-wide">Приготовление</h3>
+                        <ol className="space-y-3">
+                          {instructions.map((step, idx) => (
+                            <li key={idx} className="flex items-start gap-3 text-sm text-slate-300">
+                              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-sky-500/20 text-sky-400 text-xs flex items-center justify-center font-medium">{idx + 1}</span>
+                              {step.replace(/^\d+\.\s*/, '')}
+                            </li>
+                          ))}
+                        </ol>
+                      </section>
+                    </>
+                  )}
+                  {vm?.recipe?.tips && (
+                    <>
+                      <Separator className="bg-slate-800" />
+                      <section>
+                        <h3 className="text-sm font-semibold text-amber-400 mb-2 uppercase tracking-wide">Советы</h3>
+                        <p className="text-sm text-slate-300 leading-relaxed">{vm.recipe.tips}</p>
+                      </section>
+                    </>
+                  )}
+                  {vm?.recipe?.nutritional_notes && (
+                    <>
+                      <Separator className="bg-slate-800" />
+                      <section>
+                        <h3 className="text-sm font-semibold text-violet-400 mb-2 uppercase tracking-wide">Польза блюда</h3>
+                        <p className="text-sm text-slate-300 leading-relaxed">{vm.recipe.nutritional_notes}</p>
+                      </section>
+                    </>
+                  )}
+                  <div className="h-4" />
+                </div>
+              </ScrollArea>
+            </SheetContent>
+          </Sheet>
+        );
+      })()}
 
       <UpgradeSubscriptionModal
         open={showLimitModal}

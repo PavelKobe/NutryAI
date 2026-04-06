@@ -122,6 +122,22 @@ case "$DEPLOY_MODE" in
 esac
 
 echo ""
-echo "Готово. Проверка:"
-echo "  curl -sS http://127.0.0.1:8000/health"
-echo "  curl -sI http://127.0.0.1:3000 | head -n1"
+echo "=== Проверка живости ==="
+sleep 3
+
+echo -n "Backend (/health): "
+if curl -sf http://127.0.0.1:8000/health > /dev/null; then
+  echo "OK"
+else
+  echo "НЕ ОТВЕЧАЕТ — проверьте: sudo journalctl -u nutriaidiary-api -n 30"
+fi
+
+echo -n "Frontend (порт 3000): "
+if curl -sf http://127.0.0.1:3000 > /dev/null; then
+  echo "OK"
+else
+  echo "НЕ ОТВЕЧАЕТ — проверьте: sudo journalctl -u nutriaidiary-web -n 30"
+fi
+
+echo ""
+echo "Деплой завершён."

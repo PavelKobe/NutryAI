@@ -128,19 +128,19 @@ function PrivacyPolicyBody() {
           специального налогового режима &quot;Налог на профессиональный доход&quot;»:
         </p>
         <p>
-          👤 <strong>ФИО:</strong> Кобелев Павел Александрович
+          👤 <strong>ФИО:</strong> Кобелева Олеся Александровна
         </p>
         <p>
-          📄 <strong>ИНН:</strong> 590415594384
+          📄 <strong>ИНН:</strong> 590418316762
         </p>
         <p>
           💰 <strong>Статус:</strong> Самозанятый (налог на профессиональный доход)
         </p>
         <p>
-          📧 <strong>Контактный email:</strong> kobelev.paw@yandex.ru
+          📧 <strong>Контактный email:</strong> olesia.kobelewa@yandex.ru
         </p>
         <p className="mb-0">
-          📱 <strong>Контактный телефон:</strong> +7 (964) 536-81-40
+          📱 <strong>Контактный телефон:</strong> +7 (964) 536-81-71
         </p>
       </div>
 
@@ -165,13 +165,13 @@ function PrivacyPolicyBody() {
       <div className="my-6 rounded-xl border-l-4 border-[#27ae60] bg-[#f8f9fa] p-5 text-[#555]">
         <p>По всем вопросам, связанным с обработкой персональных данных, вы можете обратиться:</p>
         <p>
-          📧 <strong>Email:</strong> kobelev.paw@yandex.ru
+          📧 <strong>Email:</strong> olesia.kobelewa@yandex.ru
         </p>
         <p>
-          📧 <strong>Для общих вопросов:</strong> kobelev.paw@yandex.ru
+          📧 <strong>Для общих вопросов:</strong> olesia.kobelewa@yandex.ru
         </p>
         <p className="mb-0">
-          📄 <strong>ИНН исполнителя:</strong> 590415594384
+          📄 <strong>ИНН исполнителя:</strong> 590418316762
         </p>
       </div>
 

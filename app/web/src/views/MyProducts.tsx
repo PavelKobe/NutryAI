@@ -71,6 +71,8 @@ export default function MyProducts() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [page, setPage]                 = useState(0);
   const [scannerOpen, setScannerOpen]   = useState(false);
+  const [modalOpen, setModalOpen]       = useState(false);
+  const [prefillBarcode, setPrefillBarcode] = useState('');
   const [deletingId, setDeletingId]     = useState<number | null>(null);
 
   const skip = page * PAGE_SIZE;
@@ -142,10 +144,16 @@ export default function MyProducts() {
       toast.success(`«${name}» добавлен в коллекцию`);
       setScannerOpen(false);
     },
-    onError: (err: unknown) => {
-      const detail =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      toast.error(detail ?? 'Продукт не найден. Попробуйте добавить вручную.');
+    onError: (err: unknown, barcode: string) => {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
+        setPrefillBarcode(barcode);
+        setModalOpen(true);
+        toast.info('Продукт не найден в базе — заполните данные вручную');
+      } else {
+        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+        toast.error(detail ?? 'Ошибка при поиске продукта');
+      }
     },
   });
 
@@ -191,7 +199,12 @@ export default function MyProducts() {
             >
               {scannerOpen ? 'Закрыть сканер' : '📷 Сканировать'}
             </Button>
-            <AddProductModal onAdd={handleManualAdd} />
+            <AddProductModal
+              onAdd={handleManualAdd}
+              open={modalOpen}
+              onOpenChange={setModalOpen}
+              prefillBarcode={prefillBarcode}
+            />
           </div>
         </div>
 

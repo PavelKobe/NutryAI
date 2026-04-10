@@ -12,70 +12,72 @@ interface BarcodeScannerProps {
 
 export default function BarcodeScanner({ onScan, isLoading }: BarcodeScannerProps) {
   const [cameraActive, setCameraActive] = useState(false);
-  const [pendingStart, setPendingStart] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [manualBarcode, setManualBarcode] = useState('');
-  const scannerRef = useRef<{ stop: () => Promise<void>; isScanning: boolean } | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const controlsRef = useRef<{ stop: () => void } | null>(null);
 
-  const stopCamera = useCallback(async () => {
-    if (scannerRef.current?.isScanning) {
-      try {
-        await scannerRef.current.stop();
-      } catch {
-        // ignore errors on stop
-      }
-    }
-    scannerRef.current = null;
+  const stopCamera = useCallback(() => {
+    controlsRef.current?.stop();
+    controlsRef.current = null;
     setCameraActive(false);
   }, []);
 
-  // Шаг 1: показываем viewport → запускаем через useEffect (iOS требует видимый элемент)
+  // Показываем video-элемент, потом запускаем ZXing через useEffect
   const handleStartCamera = useCallback(() => {
     setCameraError(null);
-    setCameraActive(true);   // viewport становится видимым
-    setPendingStart(true);   // сигнал запустить сканер после рендера
+    setCameraActive(true);
   }, []);
 
-  // Шаг 2: viewport уже в DOM и видим → теперь инициализируем html5-qrcode
   useEffect(() => {
-    if (!pendingStart) return;
-    setPendingStart(false);
+    if (!cameraActive || !videoRef.current) return;
+
+    let cancelled = false;
 
     (async () => {
       try {
-        const { Html5Qrcode } = await import('html5-qrcode');
-        const scanner = new Html5Qrcode('barcode-scanner-viewport');
-        scannerRef.current = scanner;
+        const { BrowserMultiFormatReader, NotFoundException } = await import('@zxing/browser');
+        const reader = new BrowserMultiFormatReader();
 
-        await scanner.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 260, height: 120 } },
-          (decoded) => {
-            onScan(decoded.trim());
-            stopCamera();
+        const controls = await reader.decodeFromConstraints(
+          { video: { facingMode: 'environment' } },
+          videoRef.current!,
+          (result: { getText: () => string } | null | undefined, err: unknown) => {
+            if (cancelled) return;
+            if (result) {
+              onScan(result.getText().trim());
+              stopCamera();
+            }
+            // NotFoundException — штатная ситуация (кадр без кода), не логируем
+            if (err && !(err instanceof NotFoundException)) {
+              console.error('ZXing error:', err);
+            }
           },
-          undefined,
         );
+
+        if (cancelled) {
+          controls.stop();
+        } else {
+          controlsRef.current = controls;
+        }
       } catch (err) {
+        if (cancelled) return;
         const msg = err instanceof Error ? err.message : String(err);
         setCameraError(
-          msg.includes('Permission') || msg.includes('permission') || msg.includes('denied')
-            ? 'Нет доступа к камере. Разрешите использование камеры в настройках Safari.'
+          msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('denied')
+            ? 'Нет доступа к камере. Разрешите использование камеры в настройках браузера.'
             : 'Камера недоступна. Введите штрихкод вручную.',
         );
-        scannerRef.current = null;
         setCameraActive(false);
       }
     })();
-  }, [pendingStart, onScan, stopCamera]);
 
-  // Очищаем камеру при размонтировании
-  useEffect(() => {
     return () => {
-      stopCamera();
+      cancelled = true;
+      controlsRef.current?.stop();
+      controlsRef.current = null;
     };
-  }, [stopCamera]);
+  }, [cameraActive, onScan, stopCamera]);
 
   const handleManualSubmit = () => {
     const trimmed = manualBarcode.trim();
@@ -87,12 +89,19 @@ export default function BarcodeScanner({ onScan, isLoading }: BarcodeScannerProp
 
   return (
     <div className="space-y-3">
-      {/* Viewport для html5-qrcode — скрыт если камера выключена */}
-      <div
-        ref={containerRef}
-        className={`relative rounded-2xl overflow-hidden bg-slate-800 ${cameraActive ? 'block' : 'hidden'}`}
-      >
-        <div id="barcode-scanner-viewport" className="w-full" />
+      {/* Видео-поток камеры */}
+      <div className={`relative rounded-2xl overflow-hidden bg-black ${cameraActive ? 'block' : 'hidden'}`}>
+        <video
+          ref={videoRef}
+          className="w-full"
+          playsInline
+          muted
+          autoPlay
+        />
+        {/* Рамка прицела */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-64 h-28 border-2 border-emerald-400/80 rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
+        </div>
         <button
           onClick={stopCamera}
           className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-900/70 text-slate-300 hover:text-white"
@@ -101,7 +110,7 @@ export default function BarcodeScanner({ onScan, isLoading }: BarcodeScannerProp
           <X className="w-4 h-4" />
         </button>
         <p className="text-xs text-slate-400 text-center py-2">
-          Наведите камеру на штрихкод продукта
+          Наведите штрихкод в рамку
         </p>
       </div>
 
@@ -110,7 +119,7 @@ export default function BarcodeScanner({ onScan, isLoading }: BarcodeScannerProp
         <p className="text-xs text-amber-400 px-1">{cameraError}</p>
       )}
 
-      {/* Кнопка запуска камеры */}
+      {/* Кнопка запуска */}
       {!cameraActive && (
         <Button
           onClick={handleStartCamera}

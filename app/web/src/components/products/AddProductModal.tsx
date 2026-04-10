@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -49,17 +49,22 @@ type FormValues = z.infer<typeof schema>;
 
 interface AddProductModalProps {
   onAdd: (data: FormValues) => Promise<void>;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  prefillBarcode?: string;
 }
 
-export default function AddProductModal({ onAdd }: AddProductModalProps) {
-  const [open, setOpen] = useState(false);
+export default function AddProductModal({ onAdd, open: openProp, onOpenChange, prefillBarcode }: AddProductModalProps) {
+  const [openInternal, setOpenInternal] = useState(false);
+  const open = openProp !== undefined ? openProp : openInternal;
+  const setOpen = onOpenChange ?? setOpenInternal;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: '',
       brand: '',
-      barcode: '',
+      barcode: prefillBarcode ?? '',
       category: '',
       serving_g: 100,
       calories: undefined,
@@ -69,6 +74,13 @@ export default function AddProductModal({ onAdd }: AddProductModalProps) {
       fiber: undefined,
     },
   });
+
+  // Когда модалка открывается с prefillBarcode — подставляем штрихкод в форму
+  useEffect(() => {
+    if (open && prefillBarcode) {
+      form.setValue('barcode', prefillBarcode);
+    }
+  }, [open, prefillBarcode, form]);
 
   const onSubmit = async (values: FormValues) => {
     await onAdd(values);

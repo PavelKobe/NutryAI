@@ -123,7 +123,7 @@ esac
 
 echo ""
 echo "=== Проверка живости ==="
-sleep 3
+sleep 8
 
 echo -n "Backend (/health): "
 if curl -sf http://127.0.0.1:8000/health > /dev/null; then

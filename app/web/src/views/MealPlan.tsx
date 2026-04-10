@@ -120,6 +120,7 @@ export default function MealPlan() {
   const [editFat, setEditFat] = useState('');
   const [editCarbs, setEditCarbs] = useState('');
   const [editCookingTime, setEditCookingTime] = useState('');
+  const [useMyProducts, setUseMyProducts] = useState(false);
 
   const handleSubscriptionError = (trigger: UpgradeTrigger) => {
     setLimitTrigger(trigger);
@@ -355,6 +356,34 @@ export default function MealPlan() {
       }
       const p = profiles[0];
 
+      // Загружаем список продуктов пользователя если включена опция
+      let productsSection = '';
+      if (useMyProducts) {
+        try {
+          const productsRes = await client.entities.user_products.query({ limit: 50, sort: '-is_favorite' });
+          const products: Array<{
+            custom_name?: string;
+            is_favorite?: boolean;
+            product?: { name?: string; brand?: string; category?: string; nutrition_100g?: { calories?: number } };
+          }> = productsRes?.data?.items ?? [];
+
+          if (products.length > 0) {
+            const lines = products.map((up) => {
+              const name = up.custom_name || up.product?.name || 'Продукт';
+              const brand = up.product?.brand ? ` (${up.product.brand})` : '';
+              const kcal = up.product?.nutrition_100g?.calories
+                ? `, ${Math.round(up.product.nutrition_100g.calories)} ккал/100г`
+                : '';
+              const fav = up.is_favorite ? ' ⭐' : '';
+              return `- ${name}${brand}${kcal}${fav}`;
+            });
+            productsSection = `\nПредпочтительные продукты пользователя (отмеченные ⭐ — любимые; используй эти продукты в блюдах когда уместно, но не ограничивайся только ими):\n${lines.join('\n')}\n`;
+          }
+        } catch {
+          // Не удалось загрузить продукты — продолжаем без них
+        }
+      }
+
       const tc = p.target_calories || 2000;
       const tcMin = tc - 100;
       const tcMax = tc + 100;
@@ -370,7 +399,7 @@ export default function MealPlan() {
 - Кухня: ${p.cuisine_preferences || 'Русская'}
 - Бюджет: ${p.budget_per_week || 3000}₽/неделя
 - Время готовки: до ${p.cooking_time_minutes || 30} минут
-
+${productsSection}
 Формат JSON:
 [{"day":"Понедельник","meals":[{"type":"breakfast","name":"Название блюда","calories":350,"protein":20,"fat":12,"carbs":40,"cooking_time":15},{"type":"lunch","name":"...","calories":450,"protein":30,"fat":15,"carbs":50,"cooking_time":25},{"type":"dinner","name":"...","calories":400,"protein":28,"fat":14,"carbs":42,"cooking_time":30},{"type":"snack","name":"...","calories":150,"protein":8,"fat":5,"carbs":18,"cooking_time":5}]}]
 Используй российские продукты и блюда. Ровно 7 дней. Проверь, что для каждого дня остаток (целевое ${tc} - сумма ккал блюд) находится в диапазоне от -100 до +100 ккал; ответ — только валидный JSON без markdown.`;
@@ -687,6 +716,18 @@ export default function MealPlan() {
             )}
           </Button>
         </div>
+
+        {/* Опция: учитывать продукты из "Мои продукты" */}
+        <label className="flex items-center gap-2.5 cursor-pointer select-none w-fit">
+          <Checkbox
+            checked={useMyProducts}
+            onCheckedChange={(v) => setUseMyProducts(Boolean(v))}
+            className="border-slate-600 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+          />
+          <span className="text-sm text-slate-300">
+            Учитывать мои продукты при генерации
+          </span>
+        </label>
 
         {!plan ? (
           <div className="p-8 rounded-2xl bg-slate-900/50 border border-slate-800/50 text-center">

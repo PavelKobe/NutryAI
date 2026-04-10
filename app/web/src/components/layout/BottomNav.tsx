@@ -11,16 +11,16 @@ import {
   PlusCircle,
   MessageCircle,
   BarChart3,
-  ChefHat,
+  PackageSearch,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { path: '/dashboard', label: 'Главная', icon: LayoutDashboard },
-  { path: '/meal-plan', label: 'План', icon: CalendarDays },
-  { path: '/add-food', label: 'Добавить', icon: PlusCircle },
-  { path: '/saved-recipes', label: 'Рецепты', icon: ChefHat },
-  { path: '/chat', label: 'Чат', icon: MessageCircle },
-  { path: '/analytics', label: 'Анализ', icon: BarChart3 },
+  { path: '/dashboard',   label: 'Главная',   icon: LayoutDashboard },
+  { path: '/meal-plan',   label: 'План',       icon: CalendarDays },
+  { path: '/add-food',    label: 'Добавить',   icon: PlusCircle },
+  { path: '/my-products', label: 'Продукты',   icon: PackageSearch },
+  { path: '/chat',        label: 'Чат',        icon: MessageCircle },
+  { path: '/analytics',   label: 'Анализ',     icon: BarChart3 },
 ];
 
 // Prefetch functions for each route's data
@@ -56,11 +56,11 @@ const prefetchFns: Record<string, (qc: ReturnType<typeof useQueryClient>) => voi
       staleTime: 5 * 60 * 1000,
     });
   },
-  '/saved-recipes': (qc) => {
+  '/my-products': (qc) => {
     qc.prefetchQuery({
-      queryKey: ['recipes'],
-      queryFn: () => client.entities.recipes.query({ sort: '-created_at', limit: 50 }),
-      staleTime: 5 * 60 * 1000,
+      queryKey: ['user_products', { search: '', category: '', skip: 0 }],
+      queryFn: () => client.entities.user_products.query({ limit: 20, sort: '-created_at' }),
+      staleTime: 30 * 1000,
     });
   },
 };

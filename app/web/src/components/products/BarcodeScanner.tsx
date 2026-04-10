@@ -37,11 +37,28 @@ export default function BarcodeScanner({ onScan, isLoading }: BarcodeScannerProp
     (async () => {
       try {
         const { BrowserMultiFormatReader } = await import('@zxing/browser');
-        const { NotFoundException } = await import('@zxing/library');
-        const reader = new BrowserMultiFormatReader();
+        const { NotFoundException, DecodeHintType, BarcodeFormat } = await import('@zxing/library');
+
+        const hints = new Map();
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+          BarcodeFormat.EAN_13,
+          BarcodeFormat.EAN_8,
+          BarcodeFormat.UPC_A,
+          BarcodeFormat.UPC_E,
+          BarcodeFormat.CODE_128,
+        ]);
+        hints.set(DecodeHintType.TRY_HARDER, true);
+
+        const reader = new BrowserMultiFormatReader(hints);
 
         const controls = await reader.decodeFromConstraints(
-          { video: { facingMode: 'environment' } },
+          {
+            video: {
+              facingMode: 'environment',
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+            },
+          },
           videoRef.current!,
           (result: { getText: () => string } | null | undefined, err: unknown) => {
             if (cancelled) return;

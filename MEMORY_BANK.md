@@ -145,9 +145,70 @@ sudo env APP_ROOT=/home/nutriaidiary/nutriaidiary-src/app bash /home/nutriaidiar
 
 ---
 
+## Фича: Мои продукты (products + user_products)
+
+### Архитектура
+| Таблица | Назначение |
+|---------|-----------|
+| `products` | Глобальный кеш штрихкодов (shared, не привязан к юзеру) |
+| `user_products` | Коллекция пользователя: FK → products + кастомные поля |
+
+### Цепочка поиска штрихкода (scan endpoint)
+```
+POST /api/v1/scan
+  → 1. Локальный кеш (таблица products)   ← мгновенно
+  → 2. OpenFoodFacts API                   ← международные товары
+  → 3. FatSecret API                       ← fallback, лучше для РФ
+  → 4. 404 → фронт открывает форму ручного ввода со штрихкодом
+```
+
+### FatSecret — настройка
+Зарегистрироваться на platform.fatsecret.com, добавить в `.env` на VM:
+```
+FATSECRET_CLIENT_ID=...
+FATSECRET_CLIENT_SECRET=...
+```
+Без этих переменных FatSecret просто пропускается — ничего не ломается.
+
+### Важные паттерны
+- `source_api` в таблице `products`: `"openfoodfacts"` | `"fatsecret"` | `"manual"`
+- `upsert_from_off()` — алиас, делегирует в `upsert_from_external()` (обратная совместимость)
+- При 404 от scan: фронт автоматически открывает `AddProductModal` с предзаполненным штрихкодом
+- Российские PLU-коды (4-5 цифр на весовых товарах) не будут найдены ни в одной базе
+
+### Сканер штрихкодов (фронтенд)
+- Библиотека: `@zxing/browser` + `@zxing/library` (заменили html5-qrcode — плохо читал EAN-13)
+- `BrowserMultiFormatReader` с hints: `TRY_HARDER`, форматы EAN-13/EAN-8/UPC-A/UPC-E/CODE-128
+- iOS: viewport должен быть видимым ДО инициализации ZXing → используем двухшаговый паттерн `setCameraActive(true)` → `useEffect` → `reader.start()`
+- На цилиндрических банках камера читает хуже — рекомендуется ручной ввод
+
+### Endpoint для AI интеграции
+```
+GET /api/v1/entities/user_products/for-ai
+→ Возвращает список продуктов пользователя для системного промпта
+→ Используется в /meal-plan при включённом чекбоксе "Учитывать мои продукты"
+```
+
+---
+
+## Частые ошибки npm / деплой
+
+| Ошибка | Решение |
+|--------|---------|
+| `npm ci` — lock file out of sync | Запустить `npm install --package-lock-only` локально, закоммитить `package-lock.json` |
+| `git pull` — local changes would be overwritten | `git checkout <file>` на VM, затем деплой |
+| `NotFoundException not exported from @zxing/browser` | Импортировать из `@zxing/library` |
+| Backend "НЕ ОТВЕЧАЕТ" в скрипте деплоя | Race condition — бэкенд стартует ~10 сек, проверить вручную: `curl http://127.0.0.1:8000/health` |
+
+---
+
 ## Git Workflow
 
 1. Создай ветку: `git checkout -b feature/xxx`
-2. Запушьь: `git push -u origin feature/xxx`
+2. Запушь: `git push -u origin feature/xxx`
 3. MR в main
 4. На VM: `git pull` (автоматически через deploy script)
+
+### Репозиторий
+- Git находится в `c:\Users\kobel\NutryAI\my-app` (не в корне `NutryAI`)
+- Remote: `github.com:PavelKobe/NutryAI.git`

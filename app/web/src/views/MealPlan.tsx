@@ -21,7 +21,9 @@ import {
   BookmarkCheck,
   Pencil,
   BookOpen,
+  Copy,
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
 import UpgradeSubscriptionModal, { type UpgradeTrigger } from '@/components/subscription/UpgradeSubscriptionModal';
 import {
@@ -121,6 +123,9 @@ export default function MealPlan() {
   const [editCarbs, setEditCarbs] = useState('');
   const [editCookingTime, setEditCookingTime] = useState('');
   const [useMyProducts, setUseMyProducts] = useState(false);
+  const [copyTemplateDay, setCopyTemplateDay] = useState<number | null>(null);
+  const [copyTargetDays, setCopyTargetDays] = useState<Set<number>>(new Set());
+  const [copyPopoverOpen, setCopyPopoverOpen] = useState(false);
 
   const handleSubscriptionError = (trigger: UpgradeTrigger) => {
     setLimitTrigger(trigger);
@@ -140,6 +145,22 @@ export default function MealPlan() {
       return false;
     }
   }, [activePlanId]);
+
+  const handleApplyTemplate = useCallback(async () => {
+    if (copyTemplateDay === null || !plan) return;
+    const sourceMeals = plan[copyTemplateDay].meals;
+    const newPlan = plan.map((day, i) =>
+      copyTargetDays.has(i)
+        ? { ...day, meals: sourceMeals.map(m => ({ ...m, image_url: undefined, recipe: undefined })) }
+        : day,
+    );
+    setPlan(newPlan);
+    setCopyPopoverOpen(false);
+    const count = copyTargetDays.size;
+    setCopyTargetDays(new Set());
+    const ok = await persistPlan(newPlan);
+    if (ok) toast.success(`Меню скопировано на ${count} ${count === 1 ? 'день' : count < 5 ? 'дня' : 'дней'}`);
+  }, [copyTemplateDay, copyTargetDays, plan, persistPlan]);
 
   const loadPlan = useCallback(async () => {
     try {
@@ -757,9 +778,68 @@ ${productsSection}
 
             {/* Selected Day Meals */}
             <div className="space-y-3">
-              <h3 className="font-semibold text-emerald-400">
-                {plan[selectedDay]?.day || DAYS_RU[selectedDay]}
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-emerald-400">
+                  {plan[selectedDay]?.day || DAYS_RU[selectedDay]}
+                </h3>
+                {activePlanId && (
+                  <Popover
+                    open={copyPopoverOpen && copyTemplateDay === selectedDay}
+                    onOpenChange={(open) => {
+                      setCopyPopoverOpen(open);
+                      if (open) { setCopyTemplateDay(selectedDay); setCopyTargetDays(new Set()); }
+                    }}
+                  >
+                    <PopoverTrigger asChild>
+                      <button className="text-xs text-slate-400 hover:text-emerald-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-800 transition-all">
+                        <Copy className="w-3 h-3" />
+                        Повторить
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 bg-slate-900 border-slate-700 p-4" align="end">
+                      <p className="text-sm font-medium text-white mb-3">
+                        Повторить меню «{DAYS_SHORT[selectedDay]}» на:
+                      </p>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {DAYS_SHORT.map((label, i) => {
+                          if (i === selectedDay) return null;
+                          const checked = copyTargetDays.has(i);
+                          return (
+                            <button
+                              key={i}
+                              onClick={() => {
+                                const next = new Set(copyTargetDays);
+                                checked ? next.delete(i) : next.add(i);
+                                setCopyTargetDays(next);
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
+                                checked ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setCopyPopoverOpen(false); setCopyTargetDays(new Set()); }}
+                          className="flex-1 py-2 rounded-xl text-sm text-slate-400 bg-slate-800 hover:bg-slate-700"
+                        >
+                          Отмена
+                        </button>
+                        <button
+                          disabled={copyTargetDays.size === 0}
+                          onClick={() => void handleApplyTemplate()}
+                          className="flex-1 py-2 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Применить ({copyTargetDays.size})
+                        </button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
               {(plan[selectedDay]?.meals || []).map((meal, i) => {
                 const imgKey = `${selectedDay}-${i}`;
                 return (

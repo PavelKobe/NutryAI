@@ -76,8 +76,10 @@ export default function BarcodeScanner({ onScan, isLoading }: BarcodeScannerProp
         if (isNativeDetectorSupported()) {
           // ── Режим 1: нативный BarcodeDetector ──────────────────────────
           setScannerMode('native');
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const detector = new (window as any).BarcodeDetector({ formats: NATIVE_FORMATS });
+          type BarcodeDetectorType = { detect: (src: CanvasImageSource) => Promise<{ rawValue: string }[]> };
+          type BarcodeDetectorCtor = new (opts: { formats: string[] }) => BarcodeDetectorType;
+          const BarcodeDetectorCtor = (window as unknown as { BarcodeDetector: BarcodeDetectorCtor }).BarcodeDetector;
+          const detector = new BarcodeDetectorCtor({ formats: NATIVE_FORMATS });
           nativeDetectorRef.current = detector;
 
           if (!canvasRef.current) {
@@ -94,8 +96,7 @@ export default function BarcodeScanner({ onScan, isLoading }: BarcodeScannerProp
               canvas.height = video.videoHeight;
               ctx.drawImage(video, 0, 0);
               try {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const results: any[] = await detector.detect(canvas);
+                const results = await detector.detect(canvas);
                 if (results.length > 0) {
                   const code = results[0].rawValue?.trim();
                   if (code) { onScan(code); stopCamera(); return; }

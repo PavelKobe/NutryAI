@@ -6,6 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'NutriAI Diary',
     description:
       'Распознавание еды по фото, персональный план питания, ИИ-чат и аналитика КБЖУ.',
+    id: '/',
     start_url: '/',
     display: 'standalone',
     background_color: '#0f172a',

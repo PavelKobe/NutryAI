@@ -2,18 +2,24 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { client } from '@/lib/api';
-import OnboardingPopup from '@/views/landing/OnboardingPopup';
 import Navbar from '@/views/landing/Navbar';
 import HeroSection from '@/views/landing/HeroSection';
-import FoodScanDemoSection from '@/views/landing/FoodScanDemoSection';
-import MobileAppSection from '@/views/landing/MobileAppSection';
-import FeaturesSection from '@/views/landing/FeaturesSection';
-import AIModelsSection from '@/views/landing/AIModelsSection';
-import FAQSection from '@/views/landing/FAQSection';
-import PricingSection from '@/views/landing/PricingSection';
-import CTASection from '@/views/landing/CTASection';
-import Footer from '@/views/landing/Footer';
+
+const SectionSkeleton = () => (
+  <div className="w-full h-96 animate-pulse bg-slate-800/30 rounded-xl my-2" />
+);
+
+const OnboardingPopup = dynamic(() => import('@/views/landing/OnboardingPopup'), { ssr: false });
+const FoodScanDemoSection = dynamic(() => import('@/views/landing/FoodScanDemoSection'), { ssr: false, loading: SectionSkeleton });
+const MobileAppSection = dynamic(() => import('@/views/landing/MobileAppSection'), { ssr: false, loading: SectionSkeleton });
+const FeaturesSection = dynamic(() => import('@/views/landing/FeaturesSection'), { ssr: false, loading: SectionSkeleton });
+const AIModelsSection = dynamic(() => import('@/views/landing/AIModelsSection'), { ssr: false, loading: SectionSkeleton });
+const FAQSection = dynamic(() => import('@/views/landing/FAQSection'), { ssr: false, loading: SectionSkeleton });
+const PricingSection = dynamic(() => import('@/views/landing/PricingSection'), { ssr: false, loading: SectionSkeleton });
+const CTASection = dynamic(() => import('@/views/landing/CTASection'), { ssr: false, loading: SectionSkeleton });
+const Footer = dynamic(() => import('@/views/landing/Footer'), { ssr: false });
 
 export default function Landing() {
   const router = useRouter();

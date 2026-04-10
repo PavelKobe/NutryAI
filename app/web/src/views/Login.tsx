@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { loginWithEmail, persistSessionToken } from '@/lib/emailAuth';
 import { loginWithYandex, loginWithVkId } from '@/lib/oauthAuth';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,8 @@ export default function Login() {
     try {
       const { token } = await loginWithEmail(email.trim(), password);
       persistSessionToken(token);
+      toast.success('С возвращением!');
+      await new Promise((r) => setTimeout(r, 700));
       window.location.href = '/dashboard';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка входа');

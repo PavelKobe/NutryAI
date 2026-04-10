@@ -36,5 +36,10 @@ web/.next/
 *.tsbuildinfo
 
 # Локальная копия шаблона nginx для ВМ (не коммитить; в репо есть nginx.conf.example)
-/nginx.confCLAUDE.md
+/nginx.conf
 CLAUDE.md
+
+# Playwright — артефакты прогонов (скриншоты, отчёты, результаты)
+app/web/tests/screenshots/
+app/web/tests/playwright-report/
+app/web/tests/test-results/

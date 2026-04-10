@@ -1,36 +1,53 @@
 'use client';
 
-import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { persistSessionToken, registerWithEmail } from '@/lib/emailAuth';
 import { loginWithYandex, loginWithVkId } from '@/lib/oauthAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+
+const schema = z.object({
+  name: z.string().optional(),
+  email: z.string().min(1, 'Введите email').email('Некорректный email'),
+  password: z.string().min(8, 'Пароль не короче 8 символов'),
+});
+
+type FormValues = z.infer<typeof schema>;
 
 export default function Register() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { name: '', email: '', password: '' },
+  });
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    if (password.length < 8) {
-      setError('Пароль не короче 8 символов');
-      return;
-    }
-    setLoading(true);
+  const { isSubmitting } = form.formState;
+
+  const onSubmit = async (values: FormValues) => {
     try {
-      const { token } = await registerWithEmail(email.trim(), password, name.trim() || undefined);
+      const { token } = await registerWithEmail(
+        values.email,
+        values.password,
+        values.name?.trim() || undefined,
+      );
       persistSessionToken(token);
+      toast.success('Добро пожаловать в NutryAI!');
+      await new Promise((r) => setTimeout(r, 700));
       window.location.href = '/onboarding';
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка регистрации');
-    } finally {
-      setLoading(false);
+      const message = err instanceof Error ? err.message : 'Ошибка регистрации';
+      form.setError('email', { message });
     }
   };
 
@@ -41,48 +58,75 @@ export default function Register() {
           <h1 className="text-2xl font-bold">Регистрация</h1>
           <p className="text-slate-400 text-sm mt-1">Укажите email и пароль (мин. 8 символов)</p>
         </div>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Имя (необязательно)</Label>
-            <Input
-              id="name"
-              type="text"
-              autoComplete="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="bg-slate-950 border-slate-700"
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Имя (необязательно)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      autoComplete="name"
+                      className="bg-slate-950 border-slate-700"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="bg-slate-950 border-slate-700"
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="email"
+                      autoComplete="email"
+                      className="bg-slate-950 border-slate-700"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Пароль</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              className="bg-slate-950 border-slate-700"
+
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Пароль</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="password"
+                      autoComplete="new-password"
+                      className="bg-slate-950 border-slate-700"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          {error && <p className="text-sm text-red-400">{error}</p>}
-          <Button type="submit" disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-700">
-            {loading ? 'Создание…' : 'Зарегистрироваться'}
-          </Button>
-        </form>
+
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-emerald-600 hover:bg-emerald-700"
+            >
+              {isSubmitting ? 'Создание…' : 'Зарегистрироваться'}
+            </Button>
+          </form>
+        </Form>
+
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-slate-700" />
@@ -91,6 +135,7 @@ export default function Register() {
             <span className="bg-slate-900 px-2 text-slate-500">или</span>
           </div>
         </div>
+
         <button
           type="button"
           onClick={loginWithYandex}
@@ -102,6 +147,7 @@ export default function Register() {
           </svg>
           Зарегистрироваться через Яндекс
         </button>
+
         <button
           type="button"
           onClick={loginWithVkId}
@@ -113,6 +159,7 @@ export default function Register() {
           </svg>
           Зарегистрироваться через VK
         </button>
+
         <p className="text-center text-sm text-slate-400">
           Уже есть аккаунт?{' '}
           <Link href="/login" className="text-emerald-400 hover:underline">

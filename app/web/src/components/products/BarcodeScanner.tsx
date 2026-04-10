@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, CameraOff, Search, X } from 'lucide-react';
+import { Camera, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -12,9 +12,9 @@ interface BarcodeScannerProps {
 
 export default function BarcodeScanner({ onScan, isLoading }: BarcodeScannerProps) {
   const [cameraActive, setCameraActive] = useState(false);
+  const [pendingStart, setPendingStart] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [manualBarcode, setManualBarcode] = useState('');
-  // Ref хранит экземпляр Html5Qrcode — он мутирует без ре-рендера
   const scannerRef = useRef<{ stop: () => Promise<void>; isScanning: boolean } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -30,37 +30,45 @@ export default function BarcodeScanner({ onScan, isLoading }: BarcodeScannerProp
     setCameraActive(false);
   }, []);
 
-  const startCamera = useCallback(async () => {
+  // Шаг 1: показываем viewport → запускаем через useEffect (iOS требует видимый элемент)
+  const handleStartCamera = useCallback(() => {
     setCameraError(null);
-    try {
-      // Динамический импорт — html5-qrcode обращается к window при загрузке модуля
-      const { Html5Qrcode } = await import('html5-qrcode');
-      const scanner = new Html5Qrcode('barcode-scanner-viewport');
-      scannerRef.current = scanner;
+    setCameraActive(true);   // viewport становится видимым
+    setPendingStart(true);   // сигнал запустить сканер после рендера
+  }, []);
 
-      await scanner.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 260, height: 120 } },
-        (decoded) => {
-          onScan(decoded.trim());
-          stopCamera();
-        },
-        // Ошибки сканирования — не показываем юзеру (приходят на каждый кадр без кода)
-        undefined,
-      );
-      setCameraActive(true);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      // Типичная причина: камера не разрешена или недоступна
-      setCameraError(
-        msg.includes('Permission') || msg.includes('permission')
-          ? 'Нет доступа к камере. Разрешите использование камеры в браузере.'
-          : 'Камера недоступна. Введите штрихкод вручную.',
-      );
-      scannerRef.current = null;
-      setCameraActive(false);
-    }
-  }, [onScan, stopCamera]);
+  // Шаг 2: viewport уже в DOM и видим → теперь инициализируем html5-qrcode
+  useEffect(() => {
+    if (!pendingStart) return;
+    setPendingStart(false);
+
+    (async () => {
+      try {
+        const { Html5Qrcode } = await import('html5-qrcode');
+        const scanner = new Html5Qrcode('barcode-scanner-viewport');
+        scannerRef.current = scanner;
+
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 260, height: 120 } },
+          (decoded) => {
+            onScan(decoded.trim());
+            stopCamera();
+          },
+          undefined,
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setCameraError(
+          msg.includes('Permission') || msg.includes('permission') || msg.includes('denied')
+            ? 'Нет доступа к камере. Разрешите использование камеры в настройках Safari.'
+            : 'Камера недоступна. Введите штрихкод вручную.',
+        );
+        scannerRef.current = null;
+        setCameraActive(false);
+      }
+    })();
+  }, [pendingStart, onScan, stopCamera]);
 
   // Очищаем камеру при размонтировании
   useEffect(() => {
@@ -105,7 +113,7 @@ export default function BarcodeScanner({ onScan, isLoading }: BarcodeScannerProp
       {/* Кнопка запуска камеры */}
       {!cameraActive && (
         <Button
-          onClick={startCamera}
+          onClick={handleStartCamera}
           variant="outline"
           className="w-full border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl"
           disabled={isLoading}

@@ -80,8 +80,10 @@ export default function MyProducts() {
     queryKey: ['user_products', { search, category: categoryFilter, skip }],
     queryFn: () =>
       client.entities.user_products.query({
-        search: search || undefined,
-        category: categoryFilter || undefined,
+        query: {
+          ...(search ? { search } : {}),
+          ...(categoryFilter ? { category: categoryFilter } : {}),
+        },
         skip,
         limit: PAGE_SIZE,
         sort: '-created_at',

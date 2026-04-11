@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { client } from '@/lib/api';
 import AppLayout from '@/components/layout/AppLayout';
 import AnalyticsSkeleton from '@/components/skeletons/AnalyticsSkeleton';
-import { BarChart3, TrendingUp, Scale, Flame } from 'lucide-react';
+import { BarChart3, TrendingUp, Scale, Flame, Share2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import ShareStatsModal from '@/components/share/ShareStatsModal';
 import {
   BarChart,
   Bar,
@@ -41,6 +43,7 @@ export default function Analytics() {
   const [weightData, setWeightData] = useState<{ date: string; weight: number }[]>([]);
   const [todayMacros, setTodayMacros] = useState({ protein: 0, fat: 0, carbs: 0 });
   const [loading, setLoading] = useState(true);
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     loadAnalytics();
@@ -128,6 +131,11 @@ export default function Analytics() {
 
   return (
     <AppLayout title="Аналитика">
+      <div className="flex justify-end mb-2">
+        <Button variant="ghost" size="sm" className="gap-2 text-slate-400" onClick={() => setShareOpen(true)}>
+          <Share2 className="h-4 w-4" /> Поделиться
+        </Button>
+      </div>
       <div className="space-y-6">
         {/* Today's Macros Pie */}
         <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800/50">
@@ -238,6 +246,7 @@ export default function Analytics() {
           </div>
         </div>
       </div>
+      <ShareStatsModal open={shareOpen} onOpenChange={setShareOpen} mode="weekly" />
     </AppLayout>
   );
 }

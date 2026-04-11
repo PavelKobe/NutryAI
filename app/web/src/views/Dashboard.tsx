@@ -23,8 +23,10 @@ import {
   Camera,
   Trash2,
   Loader2,
+  Share2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import ShareStatsModal from '@/components/share/ShareStatsModal';
 
 interface UserProfile {
   target_calories: number;
@@ -62,6 +64,7 @@ export default function Dashboard() {
   const [insightLoading, setInsightLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoadError(null);
@@ -206,9 +209,14 @@ export default function Dashboard() {
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Flame className="w-5 h-5 text-orange-400" /> Калории сегодня
             </h2>
-            <span className="text-sm text-slate-400">
-              {new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-400">
+                {new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </span>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShareOpen(true)}>
+                <Share2 className="h-4 w-4 text-slate-400" />
+              </Button>
+            </div>
           </div>
           <div className="flex items-center gap-6">
             <div className="relative w-28 h-28 flex-shrink-0">
@@ -358,6 +366,7 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+      <ShareStatsModal open={shareOpen} onOpenChange={setShareOpen} mode="daily" />
     </AppLayout>
   );
 }

@@ -14,6 +14,7 @@ class User(Base):
     is_active = Column(Boolean, nullable=False, server_default=text("true"), default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
+    telegram_user_id = Column(String(255), nullable=True, unique=True)
 
 
 class OIDCState(Base):

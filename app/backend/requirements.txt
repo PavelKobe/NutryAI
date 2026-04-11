@@ -43,3 +43,6 @@ slowapi>=0.1.9
 # payments
 yookassa>=3.0.0
 
+# telegram bot
+python-telegram-bot>=21.0
+

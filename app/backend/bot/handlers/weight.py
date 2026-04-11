@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from telegram import Update
 from telegram.ext import ContextTypes
 from core.database import db_manager
@@ -38,7 +38,7 @@ async def weight_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     async with db_manager.async_session_maker() as session:
         service = Weight_logsService(session)
         await service.create(
-            {"weight_kg": weight, "logged_at": datetime.now(timezone.utc).isoformat()},
+            {"weight_kg": weight, "logged_at": datetime.now(UTC)},
             user_id=user.id,
         )
 

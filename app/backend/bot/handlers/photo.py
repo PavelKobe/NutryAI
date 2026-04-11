@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from core.database import db_manager
@@ -95,7 +95,7 @@ async def food_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
         service = Meal_logsService(session)
         for item in items:
-            item["logged_at"] = datetime.now(timezone.utc).isoformat()
+            item["logged_at"] = datetime.now(UTC)
             await service.create(item, user_id=user.id)
 
     total = sum(int(i["calories"]) for i in items)

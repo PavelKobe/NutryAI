@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone, date
+from datetime import datetime, UTC
 from telegram import Update
 from telegram.ext import ContextTypes
 from sqlalchemy import select, func
@@ -40,7 +40,7 @@ async def water_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     async with db_manager.async_session_maker() as session:
         service = Water_logsService(session)
         await service.create(
-            {"amount_ml": amount, "logged_at": datetime.now(timezone.utc).isoformat()},
+            {"amount_ml": amount, "logged_at": datetime.now(UTC)},
             user_id=user.id,
         )
 

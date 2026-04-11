@@ -680,6 +680,29 @@ export default function Profile() {
           </div>
         )}
 
+        {/* Telegram Bot Card (only in view mode) */}
+        {!editing && (
+          <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800/50">
+            <h3 className="font-semibold mb-3 flex items-center gap-2">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-blue-400">
+                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Telegram Bot
+            </h3>
+            <p className="text-sm text-slate-400 mb-3">
+              Логируйте еду прямо в Telegram — напишите текстом или отправьте фото.
+            </p>
+            <a
+              href="https://t.me/NutriAIDiaryBot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-sm font-medium transition-colors border border-blue-500/20"
+            >
+              Открыть @NutriAIDiaryBot
+            </a>
+          </div>
+        )}
+
         {/* Diet Info (only in view mode) */}
         {!editing && (
           <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800/50">

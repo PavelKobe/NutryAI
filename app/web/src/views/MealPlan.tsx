@@ -84,6 +84,13 @@ const MEAL_LABELS: Record<string, string> = {
   snack: 'Перекус',
 };
 
+const MEAL_DISTRIBUTION: Record<string, { min: number; max: number }> = {
+  breakfast: { min: 0.25, max: 0.30 },
+  lunch:     { min: 0.30, max: 0.35 },
+  dinner:    { min: 0.25, max: 0.30 },
+  snack:     { min: 0.10, max: 0.15 },
+};
+
 const DAYS_RU = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 const DAYS_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
@@ -526,6 +533,33 @@ ${productsSection}
       const p = (profileRes?.data?.items ?? profileRes?.data)?.[0];
       if (!p) { toast.error('Сначала заполните профиль'); return; }
 
+      // Calculate per-meal calorie/macro targets
+      const tc = p.target_calories || 2000;
+      const tp = p.target_protein || 100;
+      const tf = p.target_fat || 70;
+      const tcarbs = p.target_carbs || 250;
+
+      const dist = MEAL_DISTRIBUTION[meal.type] || { min: 0.25, max: 0.30 };
+      const mealCalMin = Math.round(tc * dist.min);
+      const mealCalMax = Math.round(tc * dist.max);
+      const mealProteinMin = Math.round(tp * dist.min);
+      const mealProteinMax = Math.round(tp * dist.max);
+      const mealFatMin = Math.round(tf * dist.min);
+      const mealFatMax = Math.round(tf * dist.max);
+      const mealCarbsMin = Math.round(tcarbs * dist.min);
+      const mealCarbsMax = Math.round(tcarbs * dist.max);
+
+      // Context: other meals in this day
+      const dayMeals = plan[dayIndex].meals;
+      const otherMeals = dayMeals
+        .filter((_, mi) => mi !== mealIndex)
+        .map(m => `${MEAL_LABELS[m.type] || m.type}: ${m.name} (${m.calories} ккал, Б${m.protein} Ж${m.fat} У${m.carbs})`)
+        .join('\n');
+      const otherCalories = dayMeals
+        .filter((_, mi) => mi !== mealIndex)
+        .reduce((sum, m) => sum + (m.calories || 0), 0);
+      const remainingCalories = tc - otherCalories;
+
       let responseText = '';
       await client.ai.gentxt({
         messages: [
@@ -533,8 +567,29 @@ ${productsSection}
           {
             role: 'user',
             content: `Предложи одно альтернативное блюдо для типа "${MEAL_LABELS[meal.type] || meal.type}".
-Параметры: цель — ${p.goal}, аллергии — ${p.allergies || 'нет'}, кухня — ${p.cuisine_preferences || 'Русская'}.
-Верни ТОЛЬКО JSON: {"type":"${meal.type}","name":"Название","calories":350,"protein":20,"fat":12,"carbs":40,"cooking_time":15}`,
+
+Параметры пользователя:
+- Цель: ${p.goal === 'lose' ? 'похудение' : p.goal === 'gain' ? 'набор массы' : 'поддержание веса'}
+- Суточная норма: ${tc} ккал/день
+- Целевые макросы за день: белки ~${tp}г, жиры ~${tf}г, углеводы ~${tcarbs}г
+- Аллергии: ${p.allergies || 'нет'}
+- Кухня: ${p.cuisine_preferences || 'Русская'}
+- Время готовки: до ${p.cooking_time_minutes || 30} минут
+
+Другие приёмы пищи в этот день:
+${otherMeals || 'нет данных'}
+
+Сумма калорий других приёмов: ${otherCalories} ккал.
+На "${MEAL_LABELS[meal.type] || meal.type}" остаётся примерно ${remainingCalories} ккал.
+
+Рекомендуемый диапазон для "${MEAL_LABELS[meal.type] || meal.type}":
+- Калории: ${mealCalMin}–${mealCalMax} ккал
+- Белки: ${mealProteinMin}–${mealProteinMax}г
+- Жиры: ${mealFatMin}–${mealFatMax}г
+- Углеводы: ${mealCarbsMin}–${mealCarbsMax}г
+
+Подбери значения так, чтобы общая сумма за день была близка к ${tc} ккал (±100).
+Верни ТОЛЬКО JSON: {"type":"${meal.type}","name":"...","calories":...,"protein":...,"fat":...,"carbs":...,"cooking_time":...}`,
           },
         ],
         model: 'openai/gpt-4o-mini',

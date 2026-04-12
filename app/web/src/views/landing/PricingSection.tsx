@@ -153,7 +153,7 @@ export default function PricingSection() {
             </span>
           </h2>
           <p className="text-gray-400 text-lg max-w-lg mx-auto" style={{ fontFamily: "'Inter', sans-serif" }}>
-            Базовые функции всегда бесплатны. All Inclusive открывает безлимит и полную мощь ИИ.
+            Базовые функции всегда бесплатны. Premium открывает безлимит и полную мощь ИИ.
           </p>
 
           {/* Billing toggle */}
@@ -337,10 +337,10 @@ export default function PricingSection() {
                 style={{ background: 'rgba(0,230,118,0.12)', color: '#00e676', border: '1px solid rgba(0,230,118,0.2)' }}
               >
                 <i className="ri-vip-crown-fill" />
-                All Inclusive
+                Premium
               </div>
               <h3 className="text-2xl font-black text-white mb-2" style={{ fontFamily: "var(--font-space-grotesk), sans-serif" }}>
-                All Inclusive
+                Premium
               </h3>
               <p className="text-gray-400 text-sm">Полная мощь ИИ без ограничений.</p>
             </div>
@@ -391,7 +391,7 @@ export default function PricingSection() {
               }}
             >
               <span className="relative z-10 flex items-center justify-center gap-2">
-                Попробовать All Inclusive
+                Попробовать Premium
                 <i className="ri-arrow-right-line" />
               </span>
               {/* Shine sweep */}

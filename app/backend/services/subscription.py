@@ -117,7 +117,7 @@ class SubscriptionService:
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     detail={
                         "error": "subscription_expired",
-                        "message": "Требуется обновить подписку до All Inclusive.",
+                        "message": "Требуется обновить подписку до Premium.",
                     },
                 )
 
@@ -129,7 +129,7 @@ class SubscriptionService:
                         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                         detail={
                             "error": "subscription_expired",
-                            "message": "Требуется обновить подписку до All Inclusive.",
+                            "message": "Требуется обновить подписку до Premium.",
                         },
                     )
                 raise HTTPException(

@@ -61,16 +61,16 @@ export default function UpgradeSubscriptionModal({
       : trigger === 'trial_expired'
       ? 'Пробный период завершён'
       : trigger === 'subscription_expired'
-      ? 'Требуется All Inclusive'
-      : 'All Inclusive';
+      ? 'Требуется Premium'
+      : 'Premium';
 
   const description =
     trigger === 'limit'
-      ? 'Вы использовали все 20 ИИ-запросов на сегодня. Оформите All Inclusive, чтобы продолжить.'
+      ? 'Вы использовали все 20 ИИ-запросов на сегодня. Оформите Premium, чтобы продолжить.'
       : trigger === 'trial_expired'
       ? 'Ваш 7-дневный пробный период завершён. Оформите подписку для продолжения работы.'
       : trigger === 'subscription_expired'
-      ? 'Для использования ИИ-нутрициолога требуется подписка All Inclusive. Перейдите на годовой план и сэкономьте.'
+      ? 'Для использования ИИ-нутрициолога требуется подписка Premium. Перейдите на годовой план и сэкономьте.'
       : 'Получите полный доступ ко всем функциям ИИ-нутрициолога.';
 
   const handleCheckout = async () => {
@@ -152,7 +152,7 @@ export default function UpgradeSubscriptionModal({
           className="w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 disabled:opacity-60 text-white rounded-xl py-3 font-semibold transition-colors flex items-center justify-center gap-2"
         >
           {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {isLoading ? 'Подождите...' : 'Оформить All Inclusive'}
+          {isLoading ? 'Подождите...' : 'Оформить Premium'}
         </button>
 
         <p className="text-center text-xs text-slate-600">

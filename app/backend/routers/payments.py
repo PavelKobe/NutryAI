@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 
 # Цены тарифов
 PLAN_PRICES = {
-    "monthly": ("499.00", "Подписка All Inclusive — 1 месяц"),
-    "yearly": ("3990.00", "Подписка All Inclusive — 1 год"),
+    "monthly": ("499.00", "Подписка Premium — 1 месяц"),
+    "yearly": ("3990.00", "Подписка Premium — 1 год"),
 }
 
 

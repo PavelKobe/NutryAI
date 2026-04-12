@@ -205,7 +205,16 @@ async def main():
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
+        # Try backend/.env, then app/.env
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        app_dir = os.path.dirname(backend_dir)
+        for env_path in [
+            os.path.join(backend_dir, ".env"),
+            os.path.join(app_dir, ".env"),
+        ]:
+            if os.path.exists(env_path):
+                load_dotenv(env_path)
+                break
         database_url = os.environ.get("DATABASE_URL", "")
 
     if not database_url:

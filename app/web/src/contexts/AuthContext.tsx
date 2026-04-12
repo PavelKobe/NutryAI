@@ -7,6 +7,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { client } from '@/lib/api';
+import { refreshToken } from '@/lib/tokenRefresh';
 import {
   fetchSubscriptionStatus,
   SubscriptionPlan,
@@ -76,7 +77,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      const res = await client.auth.me();
+      let res = await client.auth.me();
+
+      // If 401 — try silent refresh and retry once
+      if (!res?.data) {
+        const newToken = await refreshToken();
+        if (newToken) {
+          res = await client.auth.me();
+        }
+      }
+
       if (res?.data) {
         setUser(res.data as User);
         await loadSubscription();
@@ -86,6 +96,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setPlans([]);
       }
     } catch (err) {
+      // Try silent refresh on error (e.g. 401 thrown as exception)
+      try {
+        const newToken = await refreshToken();
+        if (newToken) {
+          const res = await client.auth.me();
+          if (res?.data) {
+            setUser(res.data as User);
+            await loadSubscription();
+            return;
+          }
+        }
+      } catch {
+        // Refresh also failed — fall through to error state
+      }
       setError(err instanceof Error ? err.message : 'An error occurred');
       setUser(null);
       setSubscription(null);

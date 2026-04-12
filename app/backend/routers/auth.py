@@ -1,9 +1,11 @@
 import logging
 
+from core.auth import AccessTokenError, decode_expired_token
 from core.database import get_db
 from core.limiter import limiter
-from dependencies.auth import get_current_user
+from dependencies.auth import get_bearer_token, get_current_user
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from models.auth import User
 from schemas.auth import (
     AuthTokenResponse,
     EmailLoginRequest,
@@ -12,6 +14,7 @@ from schemas.auth import (
 )
 from services.auth import AuthService
 from services.subscription import SubscriptionService
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
@@ -60,6 +63,33 @@ async def login(request: Request, payload: EmailLoginRequest, db: AsyncSession =
         token=token,
         expires_at=int(expires_at.timestamp()),
     )
+
+
+@router.post("/refresh", response_model=AuthTokenResponse)
+@limiter.limit("20/minute")
+async def refresh_token(
+    request: Request,
+    token: str = Depends(get_bearer_token),
+    db: AsyncSession = Depends(get_db),
+):
+    """Обновить протухший JWT (до 7 дней). Возвращает новый токен."""
+    try:
+        payload = decode_expired_token(token)
+    except AccessTokenError as exc:
+        raise HTTPException(status_code=401, detail=exc.message)
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user or not getattr(user, "is_active", True):
+        raise HTTPException(status_code=401, detail="User not found or disabled")
+
+    auth_service = AuthService(db)
+    new_token, expires_at, _ = await auth_service.issue_app_token(user=user)
+    return AuthTokenResponse(token=new_token, expires_at=int(expires_at.timestamp()))
 
 
 @router.get("/logout")

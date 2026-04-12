@@ -4,6 +4,7 @@
  */
 
 import { getAPIBaseURL } from './config';
+import { authFetch } from './tokenRefresh';
 
 function apiUrl(path: string): string {
   const base = getAPIBaseURL().replace(/\/$/, '');
@@ -60,7 +61,7 @@ export interface SubscriptionStatusResponse {
  * Требует Bearer-токен.
  */
 export async function fetchSubscriptionStatus(): Promise<SubscriptionStatusResponse> {
-  const res = await fetch(apiUrl('/api/v1/subscription/status'), {
+  const res = await authFetch(apiUrl('/api/v1/subscription/status'), {
     headers: authHeaders(),
   });
   if (!res.ok) {

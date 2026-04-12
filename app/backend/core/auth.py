@@ -63,3 +63,33 @@ def decode_access_token(token: str) -> Dict[str, Any]:
     except JWTError as exc:
         logger.warning("Token validation failed: %s", type(exc).__name__)
         raise AccessTokenError("Invalid authentication token") from exc
+
+
+def decode_expired_token(token: str, max_age_days: int = 7) -> Dict[str, Any]:
+    """Decode an expired JWT without verifying expiration (for refresh).
+
+    Only tokens expired within max_age_days are accepted.
+    Signature is still verified.
+    """
+    if not settings.jwt_secret_key:
+        raise AccessTokenError("Authentication service is misconfigured")
+
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+            options={"verify_exp": False},
+        )
+    except JWTError as exc:
+        raise AccessTokenError("Invalid authentication token") from exc
+
+    # Reject tokens expired more than max_age_days ago
+    exp = payload.get("exp")
+    if exp:
+        expired_at = datetime.fromtimestamp(exp, tz=timezone.utc)
+        age = datetime.now(timezone.utc) - expired_at
+        if age.days > max_age_days:
+            raise AccessTokenError("Token expired too long ago")
+
+    return payload

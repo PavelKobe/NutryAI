@@ -1,6 +1,7 @@
 /* MetaGPTX SDK touches `window` at init — lazy-load only in the browser. */
 
 import { getAPIBaseURL } from './config';
+import { refreshToken } from './tokenRefresh';
 
 const serverStub: unknown = new Proxy(
   function stubFn() {
@@ -40,6 +41,40 @@ function getBrowserClient() {
   if (!browserClient || browserClientTokenSnapshot !== tokenNow) {
     browserClient = getRealClient();
     browserClientTokenSnapshot = tokenNow;
+
+    // Add 401 interceptor for automatic token refresh
+    try {
+      const axios = (browserClient as unknown as { defaults?: { adapter?: unknown }; interceptors?: { response?: { use: Function } } });
+      if (axios.interceptors?.response?.use) {
+        axios.interceptors.response.use(
+          (res: unknown) => res,
+          async (err: { response?: { status?: number }; config?: Record<string, unknown> }) => {
+            if (
+              err.response?.status === 401 &&
+              err.config &&
+              !(err.config as Record<string, unknown>)._retried
+            ) {
+              const newToken = await refreshToken();
+              if (newToken) {
+                // Mark as retried to prevent infinite loops
+                (err.config as Record<string, unknown>)._retried = true;
+                // Force client to pick up new token from localStorage
+                browserClient = null;
+                browserClientTokenSnapshot = null;
+                const freshClient = getBrowserClient();
+                const axiosInstance = freshClient as unknown as { request: (config: unknown) => Promise<unknown> };
+                if (axiosInstance.request) {
+                  return axiosInstance.request(err.config);
+                }
+              }
+            }
+            throw err;
+          },
+        );
+      }
+    } catch {
+      // SDK may not expose axios interceptors — silent fail
+    }
   }
   return browserClient;
 }

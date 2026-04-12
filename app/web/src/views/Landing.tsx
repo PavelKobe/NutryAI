@@ -13,7 +13,6 @@ const SectionSkeleton = () => (
 
 const OnboardingPopup = dynamic(() => import('@/views/landing/OnboardingPopup'), { ssr: false });
 const FoodScanDemoSection = dynamic(() => import('@/views/landing/FoodScanDemoSection'), { ssr: false, loading: SectionSkeleton });
-const MobileAppSection = dynamic(() => import('@/views/landing/MobileAppSection'), { ssr: false, loading: SectionSkeleton });
 const FeaturesSection = dynamic(() => import('@/views/landing/FeaturesSection'), { ssr: false, loading: SectionSkeleton });
 const TelegramSection = dynamic(() => import('@/views/landing/TelegramSection'), { ssr: false, loading: SectionSkeleton });
 const AIModelsSection = dynamic(() => import('@/views/landing/AIModelsSection'), { ssr: false, loading: SectionSkeleton });
@@ -66,7 +65,6 @@ export default function Landing() {
       <Navbar />
       <HeroSection />
       <FoodScanDemoSection />
-      <MobileAppSection />
       <FeaturesSection />
       <TelegramSection />
       <AIModelsSection />

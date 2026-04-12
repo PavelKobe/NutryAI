@@ -10,6 +10,7 @@ const FALLBACK_FREE_FEATURES = [
   { text: 'База данных 500K+ блюд', included: true },
   { text: 'Базовая аналитика КБЖУ', included: true },
   { text: 'ИИ-чат (20 запросов/день)', included: true },
+  { text: 'Интеграция с Telegram', included: true },
   { text: 'Персональный план питания', included: false },
   { text: 'Безлимитное распознавание фото', included: false },
   { text: 'Расширенная аналитика и отчёты', included: false },
@@ -26,6 +27,7 @@ const FALLBACK_PREMIUM_FEATURES = [
   { text: 'Персональный план питания', included: true },
   { text: 'Генерация рецептов под цели', included: true },
   { text: 'Трекинг воды и микронутриентов', included: true },
+  { text: 'Интеграция с Telegram', included: true },
   { text: 'Приоритетная поддержка 24/7', included: true },
 ];
 
@@ -151,7 +153,7 @@ export default function PricingSection() {
             </span>
           </h2>
           <p className="text-gray-400 text-lg max-w-lg mx-auto" style={{ fontFamily: "'Inter', sans-serif" }}>
-            Базовые функции всегда бесплатны. Premium открывает безлимит и полную мощь ИИ.
+            Базовые функции всегда бесплатны. All Inclusive открывает безлимит и полную мощь ИИ.
           </p>
 
           {/* Billing toggle */}
@@ -282,7 +284,7 @@ export default function PricingSection() {
             </ul>
           </div>
 
-          {/* Premium Card */}
+          {/* All Inclusive Card */}
           <div
             onMouseEnter={() => setHoveredCard('premium')}
             onMouseLeave={() => setHoveredCard(null)}
@@ -335,10 +337,10 @@ export default function PricingSection() {
                 style={{ background: 'rgba(0,230,118,0.12)', color: '#00e676', border: '1px solid rgba(0,230,118,0.2)' }}
               >
                 <i className="ri-vip-crown-fill" />
-                Premium
+                All Inclusive
               </div>
               <h3 className="text-2xl font-black text-white mb-2" style={{ fontFamily: "var(--font-space-grotesk), sans-serif" }}>
-                Premium
+                All Inclusive
               </h3>
               <p className="text-gray-400 text-sm">Полная мощь ИИ без ограничений.</p>
             </div>
@@ -389,7 +391,7 @@ export default function PricingSection() {
               }}
             >
               <span className="relative z-10 flex items-center justify-center gap-2">
-                Попробовать Premium
+                Попробовать All Inclusive
                 <i className="ri-arrow-right-line" />
               </span>
               {/* Shine sweep */}
@@ -422,70 +424,6 @@ export default function PricingSection() {
             </ul>
           </div>
 
-          {/* Enterprise teaser card */}
-          <div
-            onMouseEnter={() => setHoveredCard('free')}
-            onMouseLeave={() => setHoveredCard(null)}
-            className="relative rounded-3xl p-8 flex flex-col w-full lg:max-w-xs cursor-pointer justify-between"
-            style={{
-              background: 'rgba(255,255,255,0.02)',
-              border: '1px solid rgba(255,255,255,0.06)',
-              opacity: isVisible ? 1 : 0,
-              transform: isVisible ? 'translateY(0)' : 'translateY(60px)',
-              transition: 'all 0.5s ease',
-              transitionDelay: isVisible ? '0.35s' : '0s',
-            }}
-          >
-            <div>
-              <div
-                className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-4"
-                style={{ background: 'rgba(255,214,0,0.1)', color: '#ffd600', border: '1px solid rgba(255,214,0,0.15)' }}
-              >
-                <i className="ri-building-2-fill" />
-                Enterprise
-              </div>
-              <h3 className="text-2xl font-black text-white mb-3" style={{ fontFamily: "var(--font-space-grotesk), sans-serif" }}>
-                Для бизнеса
-              </h3>
-              <p className="text-gray-500 text-sm leading-relaxed mb-6">
-                Корпоративные решения для клиник, фитнес-центров и диетологов. Брендинг, API, аналитика команды.
-              </p>
-
-              <ul className="flex flex-col gap-2.5 mb-8">
-                {[
-                  'Белый лейбл / брендинг',
-                  'API доступ',
-                  'Аналитика по клиентам',
-                  'До 1000 пользователей',
-                  'Персональный менеджер',
-                ].map((feat) => (
-                  <li key={feat} className="flex items-center gap-2.5">
-                    <i className="ri-check-line text-xs" style={{ color: '#ffd600' }} />
-                    <span className="text-sm text-gray-400">{feat}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <div className="text-3xl font-black text-white mb-1" style={{ fontFamily: "var(--font-space-grotesk), sans-serif" }}>
-                По запросу
-              </div>
-              <p className="text-gray-600 text-xs mb-5">индивидуальные условия</p>
-              <a
-                href="mailto:support@nutriai.ru"
-                className="block text-center py-3 rounded-xl text-sm font-semibold cursor-pointer whitespace-nowrap transition-all duration-200 hover:scale-105"
-                style={{
-                  background: 'rgba(255,214,0,0.08)',
-                  border: '1px solid rgba(255,214,0,0.2)',
-                  color: '#ffd600',
-                  textDecoration: 'none',
-                }}
-              >
-                Связаться с нами
-              </a>
-            </div>
-          </div>
         </div>
 
         {/* Bottom trust row */}

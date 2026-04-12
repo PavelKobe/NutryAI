@@ -7,7 +7,7 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", getattr(settings, "tel
 FOOD_PARSE_MODEL = "openai/gpt-4o-mini"
 
 # AI model for photo recognition (multimodal)
-PHOTO_PARSE_MODEL = "google/gemini-2.5-flash-preview"
+PHOTO_PARSE_MODEL = "openai/gpt-4o"
 
 FOOD_SYSTEM_PROMPT = """Ты профессиональный нутрициолог. Пользователь описал приём пищи.
 Определи каждый продукт, его порцию и пищевую ценность.

@@ -8,6 +8,7 @@ class Product(BaseModel):
     __table_args__ = {"extend_existing": True}
 
     barcode = Column(String(50), unique=True, nullable=True, index=True)
+    slug = Column(String(255), unique=True, index=True, nullable=True)
     name = Column(String(500), nullable=False)
     brand = Column(String(255), nullable=True)
     image_url = Column(String(1000), nullable=True)

@@ -6,6 +6,7 @@ from core.database import db_manager
 from bot.services.user_link import get_user_by_telegram_id
 from bot.services.food_parser import parse_food_text
 from services.meal_logs import Meal_logsService
+from services.micronutrients import MicronutrientsService
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +44,25 @@ async def food_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await processing_msg.edit_text("Не удалось определить продукты. Попробуйте описать подробнее.")
         return
 
-    # Записать каждый продукт
+    # Обогатить микронутриентами и записать
     async with db_manager.async_session_maker() as session:
         service = Meal_logsService(session)
         for item in items:
             item["logged_at"] = datetime.now(UTC)
+            try:
+                estimated = await MicronutrientsService.estimate_for_meal(
+                    food_name=item["food_name"],
+                    portion_grams=item.get("portion_grams"),
+                    calories=item.get("calories"),
+                    protein=item.get("protein"),
+                    fat=item.get("fat"),
+                    carbs=item.get("carbs"),
+                )
+                for field, value in estimated.items():
+                    if field not in item:
+                        item[field] = value
+            except Exception as e:
+                logger.warning(f"Micronutrient enrichment failed: {e}")
             await service.create(item, user_id=user.id)
 
     # Собрать сводку

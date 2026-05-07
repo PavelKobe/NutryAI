@@ -4,6 +4,7 @@ import { Inter, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
+import PWAInstallBanner from '@/components/pwa/PWAInstallBanner';
 
 const inter = Inter({ subsets: ['latin', 'cyrillic'], display: 'swap' });
 const spaceGrotesk = Space_Grotesk({
@@ -62,7 +63,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className={`${inter.className} ${spaceGrotesk.variable}`}>
         <ServiceWorkerRegistrar />
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <PWAInstallBanner />
+        </Providers>
       </body>
     </html>
   );

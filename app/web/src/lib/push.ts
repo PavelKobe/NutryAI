@@ -98,6 +98,27 @@ function authHeaders(): HeadersInit {
 // ─── VAPID key cache ────────────────────────────────────────────────────────
 
 let cachedPublicKey: string | null = null;
+let vapidAvailable: boolean | null = null;   // null = неизвестно, true/false — закешировано
+
+/** Проверяет, настроены ли VAPID-ключи на бэкенде. Тихий fetch, не бросает. */
+export async function isVapidAvailable(): Promise<boolean> {
+  if (vapidAvailable !== null) return vapidAvailable;
+  try {
+    const res = await fetch(`${apiBase()}/vapid-public-key`, {
+      headers: authHeaders(),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { public_key: string };
+      cachedPublicKey = data.public_key;
+      vapidAvailable = true;
+    } else {
+      vapidAvailable = false;
+    }
+  } catch {
+    vapidAvailable = false;
+  }
+  return vapidAvailable;
+}
 
 export async function getVapidPublicKey(): Promise<string> {
   if (cachedPublicKey) return cachedPublicKey;
@@ -109,6 +130,7 @@ export async function getVapidPublicKey(): Promise<string> {
   }
   const data = (await res.json()) as { public_key: string };
   cachedPublicKey = data.public_key;
+  vapidAvailable = true;
   return cachedPublicKey;
 }
 

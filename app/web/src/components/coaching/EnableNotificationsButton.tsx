@@ -9,6 +9,7 @@ import {
   getPermission,
   isIOSWithoutPWA,
   isPushSupported,
+  isVapidAvailable,
   subscribeUser,
   unsubscribeUser,
   type PushPermission,
@@ -42,6 +43,14 @@ export default function EnableNotificationsButton() {
         if (!cancelled) setState('ios-no-pwa');
         return;
       }
+
+      // Если VAPID не настроен на бэкенде — тихо прячем кнопку
+      const vapidOk = await isVapidAvailable();
+      if (!vapidOk) {
+        if (!cancelled) setState('unsupported');
+        return;
+      }
+
       const perm: PushPermission = getPermission();
       if (perm === 'denied') {
         if (!cancelled) setState('denied');

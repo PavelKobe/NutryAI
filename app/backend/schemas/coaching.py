@@ -141,13 +141,21 @@ class AdminCoachingClientProfile(BaseModel):
     user_id: str
     user_email: str
     user_name: Optional[str] = None
+    gender: Optional[str] = None
+    age: Optional[int] = None
+    height_cm: Optional[int] = None
+    weight_kg: Optional[float] = None
+    target_weight_kg: Optional[float] = None
+    activity_level: Optional[str] = None
+    goal: Optional[str] = None
     target_calories: Optional[float] = None
     target_protein: Optional[float] = None
     target_fat: Optional[float] = None
     target_carbs: Optional[float] = None
-    goal: Optional[str] = None
     allergies: Optional[str] = None
     cuisine_preferences: Optional[str] = None
+    budget_per_week: Optional[int] = None
+    cooking_time_minutes: Optional[int] = None
 
 
 class AdminCoachingMealLog(BaseModel):

@@ -413,13 +413,21 @@ export interface AdminCoachingClientProfile {
   user_id: string;
   user_email: string;
   user_name?: string | null;
+  gender?: string | null;
+  age?: number | null;
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  target_weight_kg?: number | null;
+  activity_level?: string | null;
+  goal?: string | null;
   target_calories?: number | null;
   target_protein?: number | null;
   target_fat?: number | null;
   target_carbs?: number | null;
-  goal?: string | null;
   allergies?: string | null;
   cuisine_preferences?: string | null;
+  budget_per_week?: number | null;
+  cooking_time_minutes?: number | null;
 }
 
 export interface AdminCoachingMealLog {

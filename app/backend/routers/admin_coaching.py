@@ -476,25 +476,28 @@ async def admin_get_client_profile(
         )
     ).scalar_one_or_none()
 
+    def _f(val):
+        return float(val) if val is not None else None
+
     return AdminCoachingClientProfile(
         user_id=user.id,
         user_email=user.email,
         user_name=user.name,
-        target_calories=float(profile.target_calories)
-        if profile and profile.target_calories is not None
-        else None,
-        target_protein=float(profile.target_protein)
-        if profile and profile.target_protein is not None
-        else None,
-        target_fat=float(profile.target_fat)
-        if profile and profile.target_fat is not None
-        else None,
-        target_carbs=float(profile.target_carbs)
-        if profile and profile.target_carbs is not None
-        else None,
+        gender=profile.gender if profile else None,
+        age=profile.age if profile else None,
+        height_cm=profile.height_cm if profile else None,
+        weight_kg=_f(profile.weight_kg) if profile else None,
+        target_weight_kg=_f(profile.target_weight_kg) if profile else None,
+        activity_level=profile.activity_level if profile else None,
         goal=profile.goal if profile else None,
+        target_calories=_f(profile.target_calories) if profile else None,
+        target_protein=_f(profile.target_protein) if profile else None,
+        target_fat=_f(profile.target_fat) if profile else None,
+        target_carbs=_f(profile.target_carbs) if profile else None,
         allergies=profile.allergies if profile else None,
         cuisine_preferences=profile.cuisine_preferences if profile else None,
+        budget_per_week=profile.budget_per_week if profile else None,
+        cooking_time_minutes=profile.cooking_time_minutes if profile else None,
     )
 
 

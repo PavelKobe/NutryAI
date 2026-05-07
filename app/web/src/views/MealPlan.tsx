@@ -861,7 +861,7 @@ ${otherMeals || 'нет данных'}
   return (
     <AppLayout title="План питания">
       <div className="space-y-5">
-        {/* Generate Button */}
+        {/* Header row */}
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <ChefHat className="w-5 h-5 text-emerald-400" /> Недельный план
@@ -874,31 +874,33 @@ ${otherMeals || 'нет данных'}
           >
             <BookmarkCheck className="w-4 h-4 mr-1" /> Рецепты
           </Button>
-          <div className="flex items-center gap-2">
-            {plan && activePlanId && (
-              <Button
-                onClick={() => setShoppingListOpen(true)}
-                variant="outline"
-                size="sm"
-                className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl gap-1.5"
-              >
-                <ShoppingCart className="w-4 h-4" />
-                Покупки
-              </Button>
-            )}
+        </div>
+
+        {/* Action buttons row */}
+        <div className="flex gap-2">
+          {plan && activePlanId && (
             <Button
-              onClick={generatePlan}
-              disabled={generating}
+              onClick={() => setShoppingListOpen(true)}
+              variant="outline"
               size="sm"
-              className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl"
+              className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl gap-1.5"
             >
-              {generating ? (
-                <><RefreshCw className="w-4 h-4 mr-1 animate-spin" /> Генерация...</>
-              ) : (
-                <><Sparkles className="w-4 h-4 mr-1" /> {plan ? 'Обновить' : 'Сгенерировать'}</>
-              )}
+              <ShoppingCart className="w-4 h-4" />
+              Покупки
             </Button>
-          </div>
+          )}
+          <Button
+            onClick={generatePlan}
+            disabled={generating}
+            size="sm"
+            className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl"
+          >
+            {generating ? (
+              <><RefreshCw className="w-4 h-4 mr-1 animate-spin" /> Генерация...</>
+            ) : (
+              <><Sparkles className="w-4 h-4 mr-1" /> {plan ? 'Обновить' : 'Сгенерировать'}</>
+            )}
+          </Button>
         </div>
 
         {/* Опция: учитывать продукты из "Мои продукты" */}

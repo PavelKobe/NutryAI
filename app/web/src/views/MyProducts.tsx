@@ -190,7 +190,7 @@ export default function MyProducts() {
               <p className="text-xs text-slate-500 mt-0.5">{total} продуктов</p>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 items-end">
             <Button
               onClick={() => setScannerOpen((v) => !v)}
               variant="outline"

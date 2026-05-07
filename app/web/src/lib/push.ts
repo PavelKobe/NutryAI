@@ -163,9 +163,12 @@ export async function subscribeUser(): Promise<PushSubscription> {
   }
 
   const publicKey = await getVapidPublicKey();
+  // Cast: TS 5.7+ generic Uint8Array<ArrayBufferLike> не сужается до BufferSource
+  // автоматически. Run-time это валидный Uint8Array<ArrayBuffer>.
+  const applicationServerKey = urlBase64ToUint8Array(publicKey) as BufferSource;
   const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(publicKey),
+    applicationServerKey,
   });
 
   await sendSubscriptionToBackend(sub);

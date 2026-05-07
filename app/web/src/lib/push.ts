@@ -34,9 +34,9 @@ export function isPushSupported(): boolean {
 export function isPWAInstalled(): boolean {
   if (typeof window === 'undefined') return false;
   if (window.matchMedia('(display-mode: standalone)').matches) return true;
-  // iOS legacy: navigator.standalone
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if ((window.navigator as any).standalone === true) return true;
+  // iOS legacy: navigator.standalone (нестандартное поле)
+  const nav = window.navigator as Navigator & { standalone?: boolean };
+  if (nav.standalone === true) return true;
   return false;
 }
 
@@ -225,8 +225,10 @@ export async function removeSubscriptionFromBackend(
 
 export async function setBadgeCount(n: number): Promise<void> {
   if (typeof navigator === 'undefined') return;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const nav = navigator as any;
+  const nav = navigator as Navigator & {
+    setAppBadge?: (n?: number) => Promise<void>;
+    clearAppBadge?: () => Promise<void>;
+  };
   try {
     if (n > 0 && typeof nav.setAppBadge === 'function') {
       await nav.setAppBadge(n);

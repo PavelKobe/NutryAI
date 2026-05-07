@@ -572,6 +572,40 @@ export async function adminSendCoachingMessage(
   return data;
 }
 
+export interface AdminCoachingUserCandidate {
+  user_id: string;
+  user_email: string;
+  user_name?: string | null;
+  user_role: string;
+  is_active: boolean;
+  coaching_status: 'none' | 'active' | 'expired';
+  expires_at?: string | null;
+  days_left: number;
+}
+
+export interface AdminCoachingUserCandidateList {
+  items: AdminCoachingUserCandidate[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+export async function adminListAllUsersForCoaching(params: {
+  skip?: number;
+  limit?: number;
+  search?: string;
+  coaching_status?: 'none' | 'active' | 'expired';
+  role?: 'user' | 'admin' | 'all';
+}): Promise<AdminCoachingUserCandidateList> {
+  const api = getAdminApi();
+  const { data, status } = await api.get<AdminCoachingUserCandidateList>(
+    '/api/v1/admin/coaching/all-users',
+    { params }
+  );
+  if (status !== 200) throw new Error(apiErrorMessage(data, 'Failed to load users'));
+  return data;
+}
+
 export async function adminActivateCoaching(
   userId: string,
   days?: number

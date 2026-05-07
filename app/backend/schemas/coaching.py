@@ -115,6 +115,26 @@ class AdminCoachingExtendResponse(BaseModel):
     days_left: int
 
 
+class AdminCoachingUserCandidate(BaseModel):
+    """Кандидат для подключения сопровождения: любой юзер + статус его coaching."""
+
+    user_id: str
+    user_email: str
+    user_name: Optional[str] = None
+    user_role: str
+    is_active: bool
+    coaching_status: Literal["none", "active", "expired"]
+    expires_at: Optional[datetime] = None
+    days_left: int = 0
+
+
+class AdminCoachingUserCandidateList(BaseModel):
+    items: list[AdminCoachingUserCandidate]
+    total: int
+    skip: int
+    limit: int
+
+
 class AdminCoachingClientProfile(BaseModel):
     """Read-only профиль клиента для нутрициолога."""
 

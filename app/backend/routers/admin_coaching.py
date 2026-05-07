@@ -36,6 +36,8 @@ from schemas.coaching import (
     AdminCoachingMealLog,
     AdminCoachingMealLogList,
     AdminCoachingMealPlan,
+    AdminCoachingUserCandidate,
+    AdminCoachingUserCandidateList,
     CoachingMessageCreate,
     CoachingMessageOut,
     CoachingMessagesPage,
@@ -188,6 +190,111 @@ async def list_clients(
     ]
 
     return AdminCoachingClientListResponse(
+        items=items,
+        total=total,
+        skip=skip,
+        limit=limit,
+    )
+
+
+@router.get(
+    "/all-users", response_model=AdminCoachingUserCandidateList
+)
+async def list_all_users_for_coaching(
+    _admin: UserResponse = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(PAGE, ge=1, le=200),
+    search: Optional[str] = Query(None, max_length=255),
+    coaching_status: Optional[str] = Query(
+        None, pattern="^(none|active|expired)$"
+    ),
+    role: str = Query("user", pattern="^(user|admin|all)$"),
+):
+    """
+    Все пользователи с признаком текущего статуса сопровождения.
+    Используется в админке для активации без оплаты.
+    """
+    now = datetime.now(tz=timezone.utc)
+
+    latest_q = (
+        select(
+            CoachingSubscription.user_id,
+            func.max(CoachingSubscription.expires_at).label("max_expires"),
+        )
+        .group_by(CoachingSubscription.user_id)
+        .subquery()
+    )
+
+    base_q = (
+        select(User, CoachingSubscription)
+        .outerjoin(latest_q, latest_q.c.user_id == User.id)
+        .outerjoin(
+            CoachingSubscription,
+            (CoachingSubscription.user_id == latest_q.c.user_id)
+            & (CoachingSubscription.expires_at == latest_q.c.max_expires),
+        )
+        .where(User.is_active.is_(True))
+    )
+
+    if role != "all":
+        base_q = base_q.where(User.role == role)
+
+    if search:
+        needle = f"%{search.strip().lower()}%"
+        base_q = base_q.where(
+            or_(User.email.ilike(needle), User.name.ilike(needle))
+        )
+
+    if coaching_status == "active":
+        base_q = base_q.where(CoachingSubscription.expires_at > now)
+    elif coaching_status == "expired":
+        base_q = base_q.where(
+            (CoachingSubscription.id.isnot(None))
+            & (CoachingSubscription.expires_at <= now)
+        )
+    elif coaching_status == "none":
+        base_q = base_q.where(CoachingSubscription.id.is_(None))
+
+    total_q = select(func.count()).select_from(base_q.subquery())
+    total = int((await db.execute(total_q)).scalar_one())
+
+    base_q = (
+        base_q.order_by(
+            # Сначала активные (expires_at > now), потом истёкшие, потом без подписки
+            CoachingSubscription.expires_at.desc().nulls_last(),
+            User.created_at.desc().nulls_last(),
+        )
+        .offset(skip)
+        .limit(limit)
+    )
+
+    rows = (await db.execute(base_q)).all()
+
+    items: list[AdminCoachingUserCandidate] = []
+    for user, sub in rows:
+        if sub is None:
+            coaching_state: str = "none"
+            expires_at: Optional[datetime] = None
+            days_left = 0
+        else:
+            expires_at = sub.expires_at
+            coaching_state = "active" if sub.expires_at > now else "expired"
+            days_left = _days_left(sub.expires_at)
+        items.append(
+            AdminCoachingUserCandidate(
+                user_id=user.id,
+                user_email=user.email,
+                user_name=user.name,
+                user_role=user.role,
+                is_active=user.is_active,
+                coaching_status=coaching_state,
+                expires_at=expires_at,
+                days_left=days_left,
+            )
+        )
+
+    return AdminCoachingUserCandidateList(
         items=items,
         total=total,
         skip=skip,

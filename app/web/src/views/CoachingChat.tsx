@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,12 @@ import {
   type CoachingStatus,
 } from '@/lib/coachingApi';
 import CoachingPaywallModal from '@/components/coaching/CoachingPaywallModal';
+import EnableNotificationsButton from '@/components/coaching/EnableNotificationsButton';
+import {
+  coachingUnreadKey,
+  markCoachingRead,
+  setBadgeCount,
+} from '@/lib/push';
 
 const POLL_INTERVAL_MS = 12_000;
 
@@ -26,6 +33,7 @@ function formatTime(iso: string): string {
 }
 
 export default function CoachingChat() {
+  const qc = useQueryClient();
   const [messages, setMessages] = useState<CoachingMessage[]>([]);
   const [status, setStatus] = useState<CoachingStatus | null>(null);
   const [input, setInput] = useState('');
@@ -35,15 +43,24 @@ export default function CoachingChat() {
   const lastIdRef = useRef<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Initial load
+  // Initial load + reset unread on mount
   useEffect(() => {
     let cancelled = false;
     Promise.all([fetchCoachingMessages(0), fetchCoachingStatus()])
-      .then(([page, st]) => {
+      .then(async ([page, st]) => {
         if (cancelled) return;
         setMessages(page.items);
         lastIdRef.current = page.last_id;
         setStatus(st);
+
+        // Сбросить unread + badge сразу при открытии чата
+        try {
+          await markCoachingRead();
+          await setBadgeCount(0);
+          qc.invalidateQueries({ queryKey: coachingUnreadKey });
+        } catch (err) {
+          console.warn('mark-read failed:', err);
+        }
       })
       .catch((err) => {
         console.error('Failed to load coaching chat:', err);
@@ -54,7 +71,7 @@ export default function CoachingChat() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [qc]);
 
   // Polling
   useEffect(() => {
@@ -64,13 +81,26 @@ export default function CoachingChat() {
         if (page.items.length > 0) {
           setMessages((prev) => [...prev, ...page.items]);
           lastIdRef.current = page.last_id;
+          // Если страница активна — сразу маркируем как прочитанные
+          if (
+            typeof document !== 'undefined' &&
+            document.visibilityState === 'visible'
+          ) {
+            try {
+              await markCoachingRead();
+              await setBadgeCount(0);
+              qc.invalidateQueries({ queryKey: coachingUnreadKey });
+            } catch {
+              // ignore
+            }
+          }
         }
       } catch (err) {
         console.error('Coaching messages polling error:', err);
       }
     }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, []);
+  }, [qc]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -135,6 +165,7 @@ export default function CoachingChat() {
               <p className="text-xs text-slate-500">История сообщений</p>
             )}
           </div>
+          {hasActive && <EnableNotificationsButton />}
         </div>
 
         {/* Messages */}

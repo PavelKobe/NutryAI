@@ -20,7 +20,7 @@ from typing import Optional
 
 from core.database import get_db
 from dependencies.auth import get_admin_user
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, status
 from models.auth import User
 from models.coaching import CoachingMessage, CoachingSubscription
 from models.meal_logs import Meal_logs
@@ -45,6 +45,7 @@ from schemas.coaching import (
     CoachingPlanResponse,
 )
 from services.coaching import CoachingService
+from services.push_service import PushService, _push_send_safe
 from sqlalchemy import desc, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -163,6 +164,7 @@ async def list_clients(
     # Последнее сообщение по каждому user_id (отдельный запрос для тех клиентов, что попали на страницу)
     user_ids = [sub.user_id for sub, _ in rows]
     last_msgs: dict[str, datetime] = {}
+    unread_counts: dict[str, int] = {}
     if user_ids:
         last_q = (
             select(
@@ -175,6 +177,21 @@ async def list_clients(
         for uid, last_at in (await db.execute(last_q)).all():
             last_msgs[uid] = last_at
 
+        unread_q = (
+            select(
+                CoachingMessage.client_id,
+                func.count().label("unread"),
+            )
+            .where(
+                CoachingMessage.client_id.in_(user_ids),
+                CoachingMessage.sender_role == "client",
+                CoachingMessage.read_by_nutritionist_at.is_(None),
+            )
+            .group_by(CoachingMessage.client_id)
+        )
+        for uid, cnt in (await db.execute(unread_q)).all():
+            unread_counts[uid] = int(cnt or 0)
+
     items = [
         AdminCoachingClientOut(
             user_id=sub.user_id,
@@ -185,6 +202,7 @@ async def list_clients(
             expires_at=sub.expires_at,
             days_left=_days_left(sub.expires_at),
             last_message_at=last_msgs.get(sub.user_id),
+            unread_count=unread_counts.get(sub.user_id, 0),
         )
         for sub, user in rows
     ]
@@ -440,6 +458,7 @@ async def admin_list_messages(
 async def admin_send_message(
     user_id: str,
     body: CoachingMessageCreate,
+    bg: BackgroundTasks,
     admin: UserResponse = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -450,6 +469,23 @@ async def admin_send_message(
         sender_role="nutritionist",
         content=body.content,
     )
+
+    # Push клиенту
+    sender_name = admin.name or "Нутрициолог"
+    payload = {
+        "title": sender_name,
+        "body": body.content[:120],
+        "icon": "/icons/icon-192x192.png",
+        "badge": "/icons/icon-192x192.png",
+        "tag": "coaching:nutritionist",
+        "data": {
+            "type": "coaching_message",
+            "url": "/coaching/chat",
+            "message_id": msg.id,
+        },
+    }
+    bg.add_task(_push_send_safe, [user_id], payload)
+
     return CoachingService.to_message_out(msg)
 
 

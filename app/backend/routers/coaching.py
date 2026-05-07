@@ -15,7 +15,7 @@ from typing import Optional
 from core.config import settings
 from core.database import get_db
 from dependencies.auth import get_current_user
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from models.payment import Payment
 from schemas.auth import UserResponse
 from schemas.coaching import (
@@ -28,6 +28,7 @@ from schemas.coaching import (
     CoachingStatusResponse,
 )
 from services.coaching import COACHING_PLAN_ID, CoachingService
+from services.push_service import PushService, _push_send_safe
 from services.yookassa_service import YooKassaService
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -157,6 +158,7 @@ async def list_coaching_messages(
 @router.post("/messages", response_model=CoachingMessageOut)
 async def send_coaching_message(
     body: CoachingMessageCreate,
+    bg: BackgroundTasks,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -167,4 +169,25 @@ async def send_coaching_message(
         sender_role="client",
         content=body.content,
     )
+
+    # Push fanout всем активным админам
+    push = PushService(db)
+    admin_ids = await push.list_admin_user_ids()
+    if admin_ids:
+        sender_name = current_user.name or current_user.email or "Клиент"
+        payload = {
+            "title": sender_name,
+            "body": body.content[:120],
+            "icon": "/icons/icon-192x192.png",
+            "badge": "/icons/icon-192x192.png",
+            "tag": f"coaching:{current_user.id}",
+            "data": {
+                "type": "coaching_message",
+                "url": f"/admin/coaching/clients/{current_user.id}",
+                "client_id": current_user.id,
+                "message_id": msg.id,
+            },
+        }
+        bg.add_task(_push_send_safe, admin_ids, payload)
+
     return CoachingService.to_message_out(msg)

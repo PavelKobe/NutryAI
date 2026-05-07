@@ -390,6 +390,7 @@ export interface AdminCoachingClient {
   expires_at: string;
   days_left: number;
   last_message_at?: string | null;
+  unread_count?: number;
 }
 
 export interface AdminCoachingClientListResponse {

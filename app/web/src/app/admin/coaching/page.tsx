@@ -122,6 +122,7 @@ function ClientsTab() {
                   <TableHead className="text-slate-300">Статус</TableHead>
                   <TableHead className="text-slate-300">До</TableHead>
                   <TableHead className="text-slate-300">Дн.</TableHead>
+                  <TableHead className="text-slate-300">Непрочит.</TableHead>
                   <TableHead className="text-slate-300">Посл. сообщение</TableHead>
                   <TableHead className="text-slate-300" />
                 </TableRow>
@@ -147,6 +148,15 @@ function ClientsTab() {
                       {formatDate(c.expires_at)}
                     </TableCell>
                     <TableCell className="text-slate-300">{c.days_left}</TableCell>
+                    <TableCell>
+                      {c.unread_count && c.unread_count > 0 ? (
+                        <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-xs font-bold">
+                          {c.unread_count}
+                        </span>
+                      ) : (
+                        <span className="text-slate-600 text-sm">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-slate-400 text-sm">
                       {formatDate(c.last_message_at)}
                     </TableCell>
@@ -162,7 +172,7 @@ function ClientsTab() {
                 {data.items.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="text-center text-slate-500 py-8"
                     >
                       Нет клиентов на сопровождении. Перейдите на вкладку «Все

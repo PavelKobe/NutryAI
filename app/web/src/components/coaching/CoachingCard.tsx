@@ -9,6 +9,7 @@ import {
   type CoachingStatus,
 } from '@/lib/coachingApi';
 import CoachingPaywallModal from './CoachingPaywallModal';
+import { useUnreadCoaching } from '@/hooks/useUnreadCoaching';
 
 function formatDate(iso: string | null): string {
   if (!iso) return '';
@@ -25,6 +26,11 @@ export default function CoachingCard() {
   const [status, setStatus] = useState<CoachingStatus | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallMode, setPaywallMode] = useState<'activate' | 'extend'>('activate');
+
+  // Подгружаем число непрочитанных только если активна подписка
+  const { data: unread = 0 } = useUnreadCoaching({
+    enabled: status?.status === 'active',
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -105,7 +111,7 @@ export default function CoachingCard() {
         >
           <div className="flex items-start gap-3 mb-3">
             <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+              className={`relative w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                 expiringSoon ? 'bg-amber-500/20' : 'bg-emerald-500/20'
               }`}
             >
@@ -114,6 +120,11 @@ export default function CoachingCard() {
                   expiringSoon ? 'text-amber-400' : 'text-emerald-400'
                 }`}
               />
+              {unread > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold border-2 border-slate-950">
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">

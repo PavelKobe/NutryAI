@@ -263,11 +263,16 @@ class CoachingService:
                 },
             )
 
+        now = datetime.now(tz=timezone.utc)
         msg = CoachingMessage(
             client_id=client_id,
             sender_id=sender_id,
             sender_role=sender_role,
             content=content,
+            # Самопрочтение: отправитель уже видел своё сообщение,
+            # чтобы не учитывать в unread-счётчике.
+            read_by_client_at=now if sender_role == "client" else None,
+            read_by_nutritionist_at=now if sender_role == "nutritionist" else None,
         )
         self.db.add(msg)
         await self.db.commit()

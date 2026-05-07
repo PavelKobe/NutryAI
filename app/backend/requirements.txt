@@ -46,3 +46,6 @@ yookassa>=3.0.0
 # telegram bot
 python-telegram-bot>=21.0
 
+# web push notifications
+pywebpush>=1.14.0
+

@@ -27,6 +27,12 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { localDateKey, localDateKeyFromLoggedAt, localTodayKey } from '@/lib/date_local';
+import EnableNotificationsButton from '@/components/coaching/EnableNotificationsButton';
+import {
+  coachingUnreadKey,
+  markCoachingRead,
+  setBadgeCount,
+} from '@/lib/push';
 
 const POLL_INTERVAL_MS = 12_000;
 
@@ -224,10 +230,19 @@ export default function AdminCoachingClientPage() {
     if (!userId) return;
     let cancelled = false;
     adminFetchCoachingMessages(userId, 0)
-      .then((page) => {
+      .then(async (page) => {
         if (cancelled) return;
         setMessages(page.items);
         lastIdRef.current = page.last_id;
+        // mark all client-sent messages from this client as read
+        try {
+          await markCoachingRead({ clientId: userId });
+          await setBadgeCount(0);
+          qc.invalidateQueries({ queryKey: coachingUnreadKey });
+          qc.invalidateQueries({ queryKey: ['admin-coaching-clients'] });
+        } catch (err) {
+          console.warn('admin mark-read failed:', err);
+        }
       })
       .catch((err) => console.error('Failed to load messages:', err));
 
@@ -237,6 +252,19 @@ export default function AdminCoachingClientPage() {
         if (page.items.length > 0) {
           setMessages((prev) => [...prev, ...page.items]);
           lastIdRef.current = page.last_id;
+          if (
+            typeof document !== 'undefined' &&
+            document.visibilityState === 'visible'
+          ) {
+            try {
+              await markCoachingRead({ clientId: userId });
+              await setBadgeCount(0);
+              qc.invalidateQueries({ queryKey: coachingUnreadKey });
+              qc.invalidateQueries({ queryKey: ['admin-coaching-clients'] });
+            } catch {
+              // ignore
+            }
+          }
         }
       } catch (err) {
         console.error('Polling error:', err);
@@ -247,7 +275,7 @@ export default function AdminCoachingClientPage() {
       cancelled = true;
       clearInterval(id);
     };
-  }, [userId]);
+  }, [userId, qc]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -334,6 +362,7 @@ export default function AdminCoachingClientPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <EnableNotificationsButton />
             <Button
               variant="outline"
               className="border-slate-700"

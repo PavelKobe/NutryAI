@@ -146,7 +146,7 @@ export default function MealPlan() {
   const [copyTargetDays, setCopyTargetDays] = useState<Set<number>>(new Set());
   const [copyPopoverOpen, setCopyPopoverOpen] = useState(false);
   const [shoppingListOpen, setShoppingListOpen] = useState(false);
-  const [shoppingScope, setShoppingScope] = useState<'week' | number>('week');
+  const [shoppingDays, setShoppingDays] = useState<Set<number>>(new Set([0,1,2,3,4,5,6]));
   const [shoppingList, setShoppingList] = useState<ShoppingCategory[] | null>(null);
   const [generatingShoppingList, setGeneratingShoppingList] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
@@ -187,15 +187,13 @@ export default function MealPlan() {
   }, [copyTemplateDay, copyTargetDays, plan, persistPlan]);
 
   const generateShoppingList = useCallback(async () => {
-    if (!plan) return;
+    if (!plan || shoppingDays.size === 0) return;
     setGeneratingShoppingList(true);
     setShoppingList(null);
     setCheckedItems(new Set());
 
     try {
-      const days = shoppingScope === 'week'
-        ? plan
-        : [plan[shoppingScope as number]].filter(Boolean);
+      const days = plan.filter((_, i) => shoppingDays.has(i));
 
       const mealsText = days.map(d =>
         `${d.day}:\n` + d.meals.map(m => `- ${m.name}`).join('\n')
@@ -262,7 +260,7 @@ ${userProductsSection}
     } finally {
       setGeneratingShoppingList(false);
     }
-  }, [plan, shoppingScope]);
+  }, [plan, shoppingDays]);
 
   const loadPlan = useCallback(async () => {
     try {
@@ -1316,19 +1314,27 @@ ${otherMeals || 'нет данных'}
           </SheetHeader>
 
           <div className="mt-4 space-y-3">
-            <p className="text-xs text-slate-400">Для какого периода:</p>
+            <p className="text-xs text-slate-400">Выберите дни:</p>
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => { setShoppingScope('week'); setShoppingList(null); }}
-                className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${shoppingScope === 'week' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                onClick={() => {
+                  setShoppingDays(shoppingDays.size === 7 ? new Set() : new Set([0,1,2,3,4,5,6]));
+                  setShoppingList(null);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${shoppingDays.size === 7 ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
               >
                 Вся неделя
               </button>
               {DAYS_SHORT.map((label, i) => (
                 <button
                   key={i}
-                  onClick={() => { setShoppingScope(i); setShoppingList(null); }}
-                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${shoppingScope === i ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                  onClick={() => {
+                    const next = new Set(shoppingDays);
+                    next.has(i) ? next.delete(i) : next.add(i);
+                    setShoppingDays(next);
+                    setShoppingList(null);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${shoppingDays.has(i) ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                 >
                   {label}
                 </button>
@@ -1337,12 +1343,12 @@ ${otherMeals || 'нет данных'}
 
             <Button
               onClick={() => void generateShoppingList()}
-              disabled={generatingShoppingList}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 rounded-xl"
+              disabled={generatingShoppingList || shoppingDays.size === 0}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 rounded-xl disabled:opacity-40"
             >
               {generatingShoppingList
                 ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Составляем список...</>
-                : '✨ Составить список'}
+                : `✨ Составить список${shoppingDays.size > 0 && shoppingDays.size < 7 ? ` (${shoppingDays.size} дн.)` : ''}`}
             </Button>
           </div>
 

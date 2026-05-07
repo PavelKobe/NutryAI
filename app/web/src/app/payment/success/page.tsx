@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchPayment } from '@/lib/paymentsApi';
+import { coachingStatusKey } from '@/lib/coachingApi';
 import AppLayout from '@/components/layout/AppLayout';
-import { CheckCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Loader2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 type PageState = 'loading' | 'success' | 'pending' | 'error';
@@ -13,11 +15,14 @@ type PageState = 'loading' | 'success' | 'pending' | 'error';
 export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const qc = useQueryClient();
   const { refetchSubscription } = useAuth();
   const [state, setState] = useState<PageState>('loading');
   const [attempts, setAttempts] = useState(0);
 
   const paymentId = searchParams.get('payment_id');
+  const product = searchParams.get('product');
+  const isCoaching = product === 'coaching';
 
   useEffect(() => {
     if (!paymentId) {
@@ -34,7 +39,11 @@ export default function PaymentSuccessPage() {
         if (cancelled) return;
 
         if (payment.status === 'succeeded') {
-          await refetchSubscription();
+          if (isCoaching) {
+            void qc.invalidateQueries({ queryKey: coachingStatusKey });
+          } else {
+            await refetchSubscription();
+          }
           setState('success');
         } else if (payment.status === 'canceled') {
           setState('error');
@@ -56,7 +65,7 @@ export default function PaymentSuccessPage() {
       cancelled = true;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paymentId]);
+  }, [paymentId, isCoaching]);
 
   return (
     <AppLayout title="Оплата">
@@ -68,7 +77,24 @@ export default function PaymentSuccessPage() {
           </>
         )}
 
-        {state === 'success' && (
+        {state === 'success' && isCoaching && (
+          <>
+            <CheckCircle className="w-16 h-16 text-emerald-500" />
+            <h1 className="text-2xl font-bold text-white">Сопровождение активировано!</h1>
+            <p className="text-slate-400 max-w-xs">
+              Оплата прошла успешно. Личный чат с нутрициологом открыт — задайте свой первый вопрос.
+            </p>
+            <Button
+              onClick={() => router.push('/coaching/chat')}
+              className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl px-8"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Перейти в чат
+            </Button>
+          </>
+        )}
+
+        {state === 'success' && !isCoaching && (
           <>
             <CheckCircle className="w-16 h-16 text-emerald-500" />
             <h1 className="text-2xl font-bold text-white">Подписка активирована!</h1>

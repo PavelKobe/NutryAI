@@ -23,5 +23,12 @@ class Payment(Base):
     paid_at = Column(DateTime(timezone=True), nullable=True)
     billing = Column(String(16), nullable=True)          # monthly | yearly
     cancellation_reason = Column(Text, nullable=True)
+    # Product discrimination: subscription (Premium) | coaching | NULL (legacy = subscription)
+    product_type = Column(String(32), nullable=True, index=True)
+    coaching_plan_id = Column(
+        String(36),
+        ForeignKey("coaching_plans.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

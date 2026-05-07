@@ -27,6 +27,8 @@ class PaymentOut(BaseModel):
     confirmation_url: Optional[str] = None
     paid_at: Optional[datetime] = None
     cancellation_reason: Optional[str] = None
+    product_type: Optional[str] = None
+    coaching_plan_id: Optional[str] = None
     created_at: datetime
 
     class Config:

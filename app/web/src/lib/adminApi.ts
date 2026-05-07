@@ -359,3 +359,242 @@ export async function adminPatchPlan(planId: string, body: AdminPlanPatch): Prom
   if (status !== 200) throw new Error(apiErrorMessage(data, 'Update failed'));
   return data;
 }
+
+// ── Coaching management ────────────────────────────────────────────────────────
+
+export interface AdminCoachingPlan {
+  id: string;
+  name: string;
+  description: string | null;
+  price: string;
+  duration_days: number;
+  features: PlanFeature[] | null;
+  is_active: boolean;
+}
+
+export interface AdminCoachingPlanPatch {
+  name?: string;
+  description?: string | null;
+  price?: number | null;
+  duration_days?: number;
+  features?: PlanFeature[];
+  is_active?: boolean;
+}
+
+export interface AdminCoachingClient {
+  user_id: string;
+  user_email: string;
+  user_name?: string | null;
+  status: 'active' | 'expired';
+  started_at: string;
+  expires_at: string;
+  days_left: number;
+  last_message_at?: string | null;
+}
+
+export interface AdminCoachingClientListResponse {
+  items: AdminCoachingClient[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+export interface AdminCoachingClientDetail {
+  user_id: string;
+  user_email: string;
+  user_name?: string | null;
+  status: 'active' | 'expired';
+  started_at: string;
+  expires_at: string;
+  days_left: number;
+}
+
+export interface AdminCoachingClientProfile {
+  user_id: string;
+  user_email: string;
+  user_name?: string | null;
+  target_calories?: number | null;
+  target_protein?: number | null;
+  target_fat?: number | null;
+  target_carbs?: number | null;
+  goal?: string | null;
+  allergies?: string | null;
+  cuisine_preferences?: string | null;
+}
+
+export interface AdminCoachingMealLog {
+  id: number;
+  meal_type?: string | null;
+  food_name?: string | null;
+  calories?: number | null;
+  protein?: number | null;
+  fat?: number | null;
+  carbs?: number | null;
+  portion_grams?: number | null;
+  photo_url?: string | null;
+  logged_at?: string | null;
+  created_at?: string | null;
+}
+
+export interface AdminCoachingMealLogList {
+  items: AdminCoachingMealLog[];
+}
+
+export interface AdminCoachingMealPlan {
+  id?: number | null;
+  plan_data?: string | null;
+  week_start?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+}
+
+export interface AdminCoachingMessage {
+  id: number;
+  sender_role: 'client' | 'nutritionist';
+  content: string;
+  created_at: string;
+}
+
+export interface AdminCoachingMessagesPage {
+  items: AdminCoachingMessage[];
+  last_id: number;
+}
+
+export interface AdminCoachingExtendResponse {
+  user_id: string;
+  expires_at: string;
+  days_left: number;
+}
+
+export async function adminGetCoachingPlan(): Promise<AdminCoachingPlan> {
+  const api = getAdminApi();
+  const { data, status } = await api.get<AdminCoachingPlan>('/api/v1/admin/coaching/plan');
+  if (status !== 200) throw new Error(apiErrorMessage(data, 'Failed to load coaching plan'));
+  return data;
+}
+
+export async function adminPatchCoachingPlan(
+  body: AdminCoachingPlanPatch
+): Promise<AdminCoachingPlan> {
+  const api = getAdminApi();
+  const { data, status } = await api.patch<AdminCoachingPlan>(
+    '/api/v1/admin/coaching/plan',
+    body
+  );
+  if (status !== 200) throw new Error(apiErrorMessage(data, 'Update failed'));
+  return data;
+}
+
+export async function adminListCoachingClients(params: {
+  skip?: number;
+  limit?: number;
+  search?: string;
+  status?: 'active' | 'expired' | 'all';
+}): Promise<AdminCoachingClientListResponse> {
+  const api = getAdminApi();
+  const { data, status } = await api.get<AdminCoachingClientListResponse>(
+    '/api/v1/admin/coaching/clients',
+    { params }
+  );
+  if (status !== 200) throw new Error('Failed to load coaching clients');
+  return data;
+}
+
+export async function adminGetCoachingClient(
+  userId: string
+): Promise<AdminCoachingClientDetail> {
+  const api = getAdminApi();
+  const { data, status } = await api.get<AdminCoachingClientDetail>(
+    `/api/v1/admin/coaching/clients/${userId}`
+  );
+  if (status !== 200) throw new Error(apiErrorMessage(data, 'Client not found'));
+  return data;
+}
+
+export async function adminGetCoachingClientProfile(
+  userId: string
+): Promise<AdminCoachingClientProfile> {
+  const api = getAdminApi();
+  const { data, status } = await api.get<AdminCoachingClientProfile>(
+    `/api/v1/admin/coaching/clients/${userId}/profile`
+  );
+  if (status !== 200) throw new Error(apiErrorMessage(data, 'Failed to load profile'));
+  return data;
+}
+
+export async function adminGetCoachingClientMealLogs(
+  userId: string,
+  params?: { date_from?: string; date_to?: string; limit?: number }
+): Promise<AdminCoachingMealLogList> {
+  const api = getAdminApi();
+  const { data, status } = await api.get<AdminCoachingMealLogList>(
+    `/api/v1/admin/coaching/clients/${userId}/meal-logs`,
+    { params }
+  );
+  if (status !== 200) throw new Error(apiErrorMessage(data, 'Failed to load meal logs'));
+  return data;
+}
+
+export async function adminGetCoachingClientMealPlan(
+  userId: string
+): Promise<AdminCoachingMealPlan> {
+  const api = getAdminApi();
+  const { data, status } = await api.get<AdminCoachingMealPlan>(
+    `/api/v1/admin/coaching/clients/${userId}/meal-plan`
+  );
+  if (status !== 200) throw new Error(apiErrorMessage(data, 'Failed to load meal plan'));
+  return data;
+}
+
+export async function adminFetchCoachingMessages(
+  userId: string,
+  afterId?: number
+): Promise<AdminCoachingMessagesPage> {
+  const api = getAdminApi();
+  const { data, status } = await api.get<AdminCoachingMessagesPage>(
+    `/api/v1/admin/coaching/clients/${userId}/messages`,
+    { params: afterId ? { after: afterId } : {} }
+  );
+  if (status !== 200) throw new Error(apiErrorMessage(data, 'Failed to load messages'));
+  return data;
+}
+
+export async function adminSendCoachingMessage(
+  userId: string,
+  content: string
+): Promise<AdminCoachingMessage> {
+  const api = getAdminApi();
+  const { data, status } = await api.post<AdminCoachingMessage>(
+    `/api/v1/admin/coaching/clients/${userId}/messages`,
+    { content }
+  );
+  if (status !== 200) throw new Error(apiErrorMessage(data, 'Failed to send message'));
+  return data;
+}
+
+export async function adminActivateCoaching(
+  userId: string,
+  days?: number
+): Promise<AdminCoachingExtendResponse> {
+  const api = getAdminApi();
+  const { data, status } = await api.post<AdminCoachingExtendResponse>(
+    `/api/v1/admin/coaching/clients/${userId}/activate`,
+    days ? { days } : {}
+  );
+  if (status !== 200) throw new Error(apiErrorMessage(data, 'Activation failed'));
+  return data;
+}
+
+export async function adminExtendCoaching(
+  userId: string,
+  days: number
+): Promise<AdminCoachingExtendResponse> {
+  const api = getAdminApi();
+  const { data, status } = await api.post<AdminCoachingExtendResponse>(
+    `/api/v1/admin/coaching/clients/${userId}/extend`,
+    {},
+    { params: { days } }
+  );
+  if (status !== 200) throw new Error(apiErrorMessage(data, 'Extension failed'));
+  return data;
+}

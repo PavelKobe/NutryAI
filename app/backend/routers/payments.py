@@ -19,6 +19,7 @@ from schemas.payments import (
     PaymentOut,
     YooKassaWebhookEvent,
 )
+from services.coaching import CoachingService
 from services.subscription import ALL_INCLUSIVE_PLAN_ID, SubscriptionService
 from services.yookassa_service import YooKassaService
 from sqlalchemy import func, select
@@ -189,20 +190,34 @@ async def yookassa_webhook(
         db_payment.status = "succeeded"
         db_payment.paid_at = now
         db_payment.captured_at = now
+        await db.flush()
 
-        # Активируем подписку
-        sub_service = SubscriptionService(db)
-        await sub_service.activate_paid_subscription(
-            user_id=db_payment.user_id,
-            plan_id=ALL_INCLUSIVE_PLAN_ID,
-            payment_id=db_payment.id,
-            billing=db_payment.billing or "monthly",
-        )
-        logger.info(
-            "Subscription activated for user %s via payment %s",
-            db_payment.user_id,
-            db_payment.id,
-        )
+        # Ветвление активации по типу продукта
+        if db_payment.product_type == "coaching":
+            coaching_service = CoachingService(db)
+            await coaching_service.activate_or_extend(
+                user_id=db_payment.user_id,
+                payment_id=db_payment.id,
+            )
+            logger.info(
+                "Coaching activated for user %s via payment %s",
+                db_payment.user_id,
+                db_payment.id,
+            )
+        else:
+            # Premium subscription (legacy: product_type IS NULL trated as 'subscription')
+            sub_service = SubscriptionService(db)
+            await sub_service.activate_paid_subscription(
+                user_id=db_payment.user_id,
+                plan_id=ALL_INCLUSIVE_PLAN_ID,
+                payment_id=db_payment.id,
+                billing=db_payment.billing or "monthly",
+            )
+            logger.info(
+                "Subscription activated for user %s via payment %s",
+                db_payment.user_id,
+                db_payment.id,
+            )
 
     elif event.event == "payment.canceled" and yk_payment.status == "canceled":
         db_payment.status = "canceled"

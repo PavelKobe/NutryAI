@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ShareStatsModal from '@/components/share/ShareStatsModal';
+import CoachingCard from '@/components/coaching/CoachingCard';
 
 interface UserProfile {
   target_calories: number;
@@ -294,6 +295,9 @@ export default function Dashboard() {
             <span className="text-xs font-medium">Вручную</span>
           </Button>
         </div>
+
+        {/* Coaching */}
+        <CoachingCard />
 
         {/* AI Insight */}
         <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20">

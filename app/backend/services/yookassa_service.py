@@ -34,6 +34,7 @@ class YooKassaService:
         return_url: str,
         billing: str,
         idempotency_key: str,
+        extra_metadata: dict[str, Any] | None = None,
     ) -> tuple[str, str]:
         """
         Создаёт платёж в YooKassa.
@@ -42,6 +43,13 @@ class YooKassaService:
             (confirmation_url, yookassa_payment_id)
         """
         _configure()
+
+        metadata: dict[str, Any] = {
+            "billing": billing,
+            "idempotency_key": idempotency_key,
+        }
+        if extra_metadata:
+            metadata.update(extra_metadata)
 
         payload: dict[str, Any] = {
             "amount": {
@@ -54,10 +62,7 @@ class YooKassaService:
             },
             "capture": True,
             "description": description,
-            "metadata": {
-                "billing": billing,
-                "idempotency_key": idempotency_key,
-            },
+            "metadata": metadata,
         }
 
         def _create() -> Any:

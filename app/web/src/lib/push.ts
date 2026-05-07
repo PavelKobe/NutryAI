@@ -49,6 +49,15 @@ export function isIOSWithoutPWA(): boolean {
   return isIOS() && !isPWAInstalled();
 }
 
+/** Chrome / Edge / Yandex / Opera / Brave / Arc — все на базе Chromium. */
+export function isChromiumLike(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  // Исключаем iOS-браузеры (CriOS, FxiOS) — они на WebKit и не дают beforeinstallprompt
+  if (/CriOS|FxiOS|EdgiOS/i.test(ua)) return false;
+  return /Chrome|Chromium|Edg|YaBrowser|OPR|Brave/i.test(ua);
+}
+
 export function getPermission(): PushPermission {
   if (typeof Notification === 'undefined') return 'default';
   return Notification.permission as PushPermission;

@@ -15,7 +15,12 @@
  */
 
 import { useEffect, useState } from 'react';
-import { isIOS, isIOSWithoutPWA, isPWAInstalled } from '@/lib/push';
+import {
+  isChromiumLike,
+  isIOS,
+  isIOSWithoutPWA,
+  isPWAInstalled,
+} from '@/lib/push';
 
 const DISMISS_KEY = 'pwa_install_dismissed_at';
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 дней
@@ -27,8 +32,9 @@ interface BeforeInstallPromptEvent extends Event {
 
 export type PWAInstallState =
   | 'idle'
-  | 'installable'
-  | 'ios-installable'
+  | 'installable'        // Android/Desktop Chromium — beforeinstallprompt пойман
+  | 'manual-installable' // Chromium, но событие ещё не пришло — показываем инструкцию
+  | 'ios-installable'    // iOS Safari вне PWA
   | 'dismissed'
   | 'installed';
 
@@ -82,9 +88,23 @@ export function usePWAInstall() {
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
     window.addEventListener('appinstalled', handleInstalled);
 
+    // Fallback: если Chromium-браузер, но `beforeinstallprompt` не пришёл
+    // в течение 1.5 секунды — показываем баннер с ручной инструкцией.
+    // Если событие придёт позже — handleBeforeInstall перепишет state на
+    // 'installable' и юзер увидит нативный prompt.
+    let manualTimeout: ReturnType<typeof setTimeout> | null = null;
+    if (isChromiumLike()) {
+      manualTimeout = setTimeout(() => {
+        // Используем функциональный setState — если за это время уже
+        // переключились в installable / installed — не перезаписываем.
+        setState((current) => (current === 'idle' ? 'manual-installable' : current));
+      }, 1500);
+    }
+
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
       window.removeEventListener('appinstalled', handleInstalled);
+      if (manualTimeout) clearTimeout(manualTimeout);
     };
   }, []);
 

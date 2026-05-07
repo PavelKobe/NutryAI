@@ -8,6 +8,7 @@ from core.database import get_db
 from dependencies.auth import get_current_user
 from schemas.auth import UserResponse
 from schemas.products import (
+    CheckShoppingItemRequest,
     UserProductCreate,
     UserProductOut,
     UserProductUpdate,
@@ -128,6 +129,34 @@ async def get_products_for_ai(
         return {"products": products}
     except Exception as e:
         logger.error(f"Error fetching products for AI: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+
+@router.post("/check-shopping-item", response_model=UserProductOut)
+async def check_shopping_item(
+    body: CheckShoppingItemRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Отметка товара в Shopping List.
+
+    Если у пользователя уже есть user_product с таким именем
+    (совпадение custom_name или Product.name, case-insensitive) —
+    прибавляет grams к stock_grams. Иначе — создаёт новый
+    user_product (с автоматическим созданием Product source_api='manual').
+    """
+    service = UserProductsService(db)
+    try:
+        result = await service.check_shopping_item(
+            user_id=str(current_user.id),
+            name=body.name,
+            grams=body.grams,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error in check_shopping_item: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 

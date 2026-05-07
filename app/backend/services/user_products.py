@@ -144,6 +144,76 @@ class UserProductsService:
             logger.error(f"Error creating user_product: {e}")
             raise
 
+    async def check_shopping_item(
+        self, user_id: str, name: str, grams: Optional[float]
+    ) -> UserProduct:
+        """Идемпотентный апсерт по совпадению имени для Shopping List.
+
+        Поиск существующего user_product юзера: совпадение по
+        custom_name ИЛИ по имени связанного Product (case-insensitive).
+        Если нашли — увеличиваем stock_grams на grams (если задано).
+        Если не нашли — создаём новый Product (source_api='manual')
+        и user_product со stock_grams=grams.
+        """
+        name = (name or "").strip()
+        if not name:
+            raise ValueError("name is required")
+
+        try:
+            stmt = (
+                select(UserProduct)
+                .join(Product, UserProduct.product_id == Product.id)
+                .where(UserProduct.user_id == user_id)
+                .where(
+                    or_(
+                        func.lower(UserProduct.custom_name) == name.lower(),
+                        func.lower(Product.name) == name.lower(),
+                    )
+                )
+                .limit(1)
+            )
+            result = await self.db.execute(stmt)
+            existing = result.scalar_one_or_none()
+
+            if existing is not None:
+                if grams is not None and grams > 0:
+                    existing.stock_grams = (existing.stock_grams or 0) + grams
+                    await self.db.commit()
+                    await self.db.refresh(existing)
+                logger.info(
+                    "Accumulated stock_grams for user_product %s (user=%s, +%s g)",
+                    existing.id, user_id, grams,
+                )
+                return existing
+
+            # Не нашли — создаём новый Product + UserProduct
+            product = Product(
+                name=name,
+                source_api="manual",
+            )
+            self.db.add(product)
+            await self.db.flush()  # product.id
+
+            obj = UserProduct(
+                user_id=user_id,
+                product_id=product.id,
+                custom_name=name,
+                serving_g=100.0,
+                stock_grams=(grams if (grams is not None and grams > 0) else 0),
+            )
+            self.db.add(obj)
+            await self.db.commit()
+            await self.db.refresh(obj)
+            logger.info(
+                "Created user_product %s for user=%s via shopping-list check (grams=%s)",
+                obj.id, user_id, grams,
+            )
+            return obj
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error in check_shopping_item: {e}")
+            raise
+
     async def upsert(
         self, product_id: int, user_id: str, extras: Optional[Dict[str, Any]] = None
     ) -> UserProduct:

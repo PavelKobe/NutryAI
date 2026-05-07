@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Package, Star, Trash2, Flame, ChevronDown, ChevronUp } from 'lucide-react';
+import { Package, Star, Trash2, Flame, ChevronDown, ChevronUp, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getCategoryLabel } from '@/lib/product-categories';
+import { formatStock } from '@/lib/parseAmount';
 
 interface Nutrition {
   calories?: number;
@@ -29,6 +30,7 @@ export interface UserProductData {
   id: number;
   custom_name?: string | null;
   serving_g?: number | null;
+  stock_grams?: number | null;
   category?: string | null;
   tags?: string[] | null;
   is_favorite: boolean;
@@ -102,12 +104,20 @@ export default function ProductCard({
             )}
           </div>
 
-          {/* Category badge */}
-          {category && (
-            <span className="inline-block mt-1.5 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-              {getCategoryLabel(category)}
-            </span>
-          )}
+          {/* Category + Stock badges */}
+          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+            {category && (
+              <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                {getCategoryLabel(category)}
+              </span>
+            )}
+            {item.stock_grams != null && item.stock_grams > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                <ShoppingBag className="w-2.5 h-2.5" />
+                в наличии: {formatStock(item.stock_grams)}
+              </span>
+            )}
+          </div>
         </button>
 
         {/* Action buttons */}

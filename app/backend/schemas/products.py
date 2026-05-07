@@ -75,6 +75,7 @@ class UserProductOut(BaseModel):
     product_id: int
     custom_name: Optional[str] = None
     serving_g: Optional[float] = None
+    stock_grams: Optional[float] = 0
     category: Optional[str] = None
     tags: Optional[List[str]] = None
     is_favorite: bool
@@ -90,3 +91,25 @@ class UserProductsListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+
+
+class CheckShoppingItemRequest(BaseModel):
+    """Отметка товара в Shopping List.
+
+    Сервис ищет существующий user_product юзера по совпадению имени
+    (case-insensitive); если нашёл — прибавляет grams к stock_grams,
+    если нет — создаёт новый.
+    """
+
+    name: str
+    grams: Optional[float] = None  # None или 0 — не накапливать массу
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("name must not be empty")
+        if len(v) > 500:
+            raise ValueError("name too long (max 500)")
+        return v

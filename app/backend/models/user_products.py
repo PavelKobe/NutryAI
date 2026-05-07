@@ -15,6 +15,9 @@ class UserProduct(BaseModel):
     product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
     custom_name = Column(String(500), nullable=True)
     serving_g = Column(Float, nullable=True, default=100.0)
+    # Накопленный остаток в граммах — увеличивается при отметке товара в Shopping List.
+    # NULL у legacy-записей трактуется как 0.
+    stock_grams = Column(Float, nullable=True, default=0, server_default="0")
     # крупы | мясо | молочка | рыба | овощи | фрукты | бобовые | выпечка | снеки | напитки | масла | другое
     category = Column(String(100), nullable=True)
     # ["без лактозы", "веган", ...] — пользовательские теги

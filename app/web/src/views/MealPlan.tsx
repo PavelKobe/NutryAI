@@ -6,6 +6,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { client } from '@/lib/api';
 import { localDateKeyFromLoggedAt, localTodayKey } from '@/lib/date_local';
 import { mealLogsTodayQueryKey } from '@/lib/queries/meal_logs_today';
+import { formatGrams, normalizeProductName, parseAmount } from '@/lib/parseAmount';
+import { getAPIBaseURL } from '@/lib/config';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import MealPlanSkeleton from '@/components/skeletons/MealPlanSkeleton';
@@ -150,6 +152,8 @@ export default function MealPlan() {
   const [shoppingList, setShoppingList] = useState<ShoppingCategory[] | null>(null);
   const [generatingShoppingList, setGeneratingShoppingList] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  // Нормализованные имена user_products для match'а с item.name → автогалки.
+  const [existingProductNames, setExistingProductNames] = useState<Set<string>>(new Set());
 
   const handleSubscriptionError = (trigger: UpgradeTrigger) => {
     setLimitTrigger(trigger);
@@ -185,6 +189,46 @@ export default function MealPlan() {
     const ok = await persistPlan(newPlan);
     if (ok) toast.success(`Меню скопировано на ${count} ${count === 1 ? 'день' : count < 5 ? 'дня' : 'дней'}`);
   }, [copyTemplateDay, copyTargetDays, plan, persistPlan]);
+
+  // Загружает имена существующих user_products для авто-галок при открытии Sheet.
+  const loadExistingUserProducts = useCallback(async () => {
+    try {
+      const res = await client.entities.user_products.query({ limit: 500, sort: '-created_at' });
+      const items =
+        (res as { data?: { items?: { custom_name?: string; product?: { name: string } }[] } })
+          ?.data?.items ?? [];
+      const names = new Set<string>();
+      for (const it of items) {
+        const n = normalizeProductName(it.custom_name || it.product?.name || '');
+        if (n) names.add(n);
+      }
+      setExistingProductNames(names);
+    } catch (err) {
+      console.error('Failed to load user_products for shopping list:', err);
+    }
+  }, []);
+
+  // Вызов кастомного endpoint POST /entities/user_products/check-shopping-item
+  const callCheckShoppingItem = useCallback(
+    async (name: string, grams: number | null): Promise<void> => {
+      const token =
+        typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const url = `${getAPIBaseURL().replace(/\/$/, '')}/api/v1/entities/user_products/check-shopping-item`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ name, grams }),
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`check-shopping-item failed: ${res.status} ${body}`);
+      }
+    },
+    [],
+  );
 
   const generateShoppingList = useCallback(async () => {
     if (!plan || shoppingDays.size === 0) return;
@@ -338,6 +382,30 @@ ${userProductsSection}
     if (pathname !== '/meal-plan') return;
     void loadPlan();
   }, [pathname, loadPlan]);
+
+  // При открытии Sheet «Список покупок» подгружаем user_products юзера,
+  // чтобы автоматически проставить галки на тех товарах, что уже в коллекции.
+  useEffect(() => {
+    if (!shoppingListOpen) return;
+    void loadExistingUserProducts();
+  }, [shoppingListOpen, loadExistingUserProducts]);
+
+  // Когда либо появился shoppingList, либо обновился existingProductNames —
+  // вычисляем какие пункты уже отмечены (есть в Моих).
+  useEffect(() => {
+    if (!shoppingList || existingProductNames.size === 0) return;
+    setCheckedItems((prev) => {
+      const next = new Set(prev);
+      for (const cat of shoppingList) {
+        for (const item of cat.items) {
+          if (existingProductNames.has(normalizeProductName(item.name))) {
+            next.add(`${cat.category}:${item.name}`);
+          }
+        }
+      }
+      return next;
+    });
+  }, [shoppingList, existingProductNames]);
 
   const openMealEditor = (dayIndex: number, mealIndex: number) => {
     const meal = plan?.[dayIndex]?.meals?.[mealIndex];
@@ -1373,9 +1441,44 @@ ${otherMeals || 'нет данных'}
                           <button
                             key={key}
                             onClick={() => {
+                              const wasChecked = checked;
                               const next = new Set(checkedItems);
-                              checked ? next.delete(key) : next.add(key);
+                              if (wasChecked) {
+                                next.delete(key);
+                              } else {
+                                next.add(key);
+                              }
                               setCheckedItems(next);
+
+                              // Только при поднятии галки (off→on) добавляем в Мои продукты.
+                              if (!wasChecked) {
+                                const parsed = parseAmount(item.amount);
+                                const grams = parsed.grams;
+                                const display =
+                                  grams && grams > 0 ? ` ${formatGrams(grams)}` : '';
+                                void (async () => {
+                                  try {
+                                    await callCheckShoppingItem(item.name, grams);
+                                    toast.success(`✓ Добавлено: ${item.name}${display}`);
+                                    // Помечаем имя как существующее — для consistency
+                                    setExistingProductNames((prev) => {
+                                      const s = new Set(prev);
+                                      s.add(normalizeProductName(item.name));
+                                      return s;
+                                    });
+                                    queryClient.invalidateQueries({ queryKey: ['user_products'] });
+                                  } catch (err) {
+                                    console.error('check-shopping-item failed:', err);
+                                    toast.error('Не удалось добавить в Мои продукты');
+                                    // Откатываем UI-галку при ошибке
+                                    setCheckedItems((prev) => {
+                                      const s = new Set(prev);
+                                      s.delete(key);
+                                      return s;
+                                    });
+                                  }
+                                })();
+                              }
                             }}
                             className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all ${checked ? 'opacity-50 bg-slate-800/30' : 'bg-slate-900/50 hover:bg-slate-800/50'}`}
                           >

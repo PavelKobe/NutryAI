@@ -45,3 +45,5 @@ app/web/tests/screenshots/
 app/web/tests/playwright-report/
 app/web/tests/test-results/
 /mcp-servers/
+.codex/
+AGENTS.md

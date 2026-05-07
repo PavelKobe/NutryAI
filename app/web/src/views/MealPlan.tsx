@@ -22,6 +22,7 @@ import {
   Pencil,
   BookOpen,
   Copy,
+  ShoppingCart,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
@@ -68,6 +69,17 @@ interface MealItem {
 interface DayPlan {
   day: string;
   meals: MealItem[];
+}
+
+interface ShoppingItem {
+  name: string;
+  amount: string;
+  have: boolean;
+}
+
+interface ShoppingCategory {
+  category: string;
+  items: ShoppingItem[];
 }
 
 const MEAL_EMOJI: Record<string, string> = {
@@ -133,6 +145,11 @@ export default function MealPlan() {
   const [copyTemplateDay, setCopyTemplateDay] = useState<number | null>(null);
   const [copyTargetDays, setCopyTargetDays] = useState<Set<number>>(new Set());
   const [copyPopoverOpen, setCopyPopoverOpen] = useState(false);
+  const [shoppingListOpen, setShoppingListOpen] = useState(false);
+  const [shoppingScope, setShoppingScope] = useState<'week' | number>('week');
+  const [shoppingList, setShoppingList] = useState<ShoppingCategory[] | null>(null);
+  const [generatingShoppingList, setGeneratingShoppingList] = useState(false);
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
 
   const handleSubscriptionError = (trigger: UpgradeTrigger) => {
     setLimitTrigger(trigger);
@@ -168,6 +185,84 @@ export default function MealPlan() {
     const ok = await persistPlan(newPlan);
     if (ok) toast.success(`Меню скопировано на ${count} ${count === 1 ? 'день' : count < 5 ? 'дня' : 'дней'}`);
   }, [copyTemplateDay, copyTargetDays, plan, persistPlan]);
+
+  const generateShoppingList = useCallback(async () => {
+    if (!plan) return;
+    setGeneratingShoppingList(true);
+    setShoppingList(null);
+    setCheckedItems(new Set());
+
+    try {
+      const days = shoppingScope === 'week'
+        ? plan
+        : [plan[shoppingScope as number]].filter(Boolean);
+
+      const mealsText = days.map(d =>
+        `${d.day}:\n` + d.meals.map(m => `- ${m.name}`).join('\n')
+      ).join('\n\n');
+
+      let userProductNames: string[] = [];
+      try {
+        const res = await client.entities.user_products.query({ limit: 200, sort: '-created_at' });
+        const items = (res as { data?: { items?: { custom_name?: string; product?: { name: string } }[] } })?.data?.items ?? [];
+        userProductNames = items.map((p: { custom_name?: string; product?: { name: string } }) => p.custom_name || p.product?.name || '').filter(Boolean);
+      } catch { /* нет продуктов — не критично */ }
+
+      const userProductsSection = userProductNames.length > 0
+        ? `\nПродукты которые уже есть у пользователя (отметь have=true):\n${userProductNames.join(', ')}`
+        : '';
+
+      const prompt = `Составь список продуктов для покупки для следующих блюд.
+${mealsText}
+${userProductsSection}
+
+Верни ТОЛЬКО JSON без markdown:
+{
+  "categories": [
+    {
+      "category": "Название категории на русском",
+      "items": [
+        { "name": "Название продукта", "amount": "количество с единицей измерения", "have": false }
+      ]
+    }
+  ]
+}
+
+Правила:
+- Группируй по категориям: Мясо и птица, Рыба и морепродукты, Молочные продукты, Крупы и злаки, Овощи, Фрукты, Бобовые, Хлеб и выпечка, Масла и соусы, Специи и приправы, Прочее
+- Суммируй одинаковые продукты если встречаются в нескольких блюдах
+- amount указывай в граммах/мл/штуках (например: "600г", "500мл", "3 шт")
+- have=true если продукт есть в списке пользователя (сравни по смыслу)
+- Не включай воду, соль, перец как отдельные пункты`;
+
+      let fullText = '';
+      await client.ai.gentxt({
+        messages: [
+          { role: 'system', content: 'Ты — помощник по планированию питания. Отвечай ТОЛЬКО валидным JSON без markdown-обёрток.' },
+          { role: 'user', content: prompt },
+        ],
+        model: 'openai/gpt-4o-mini',
+        stream: true,
+        onChunk: (chunk: { content?: string }) => { fullText += chunk.content || ''; },
+        onComplete: async () => {
+          try {
+            const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error('Invalid JSON');
+            const parsed = JSON.parse(jsonMatch[0]);
+            setShoppingList(parsed.categories ?? []);
+          } catch {
+            toast.error('Не удалось разобрать ответ ИИ');
+          } finally {
+            setGeneratingShoppingList(false);
+          }
+        },
+      });
+    } catch {
+      toast.error('Не удалось составить список покупок');
+    } finally {
+      setGeneratingShoppingList(false);
+    }
+  }, [plan, shoppingScope]);
 
   const loadPlan = useCallback(async () => {
     try {
@@ -779,18 +874,31 @@ ${otherMeals || 'нет данных'}
           >
             <BookmarkCheck className="w-4 h-4 mr-1" /> Рецепты
           </Button>
-          <Button
-            onClick={generatePlan}
-            disabled={generating}
-            size="sm"
-            className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl"
-          >
-            {generating ? (
-              <><RefreshCw className="w-4 h-4 mr-1 animate-spin" /> Генерация...</>
-            ) : (
-              <><Sparkles className="w-4 h-4 mr-1" /> {plan ? 'Обновить' : 'Сгенерировать'}</>
+          <div className="flex items-center gap-2">
+            {plan && activePlanId && (
+              <Button
+                onClick={() => setShoppingListOpen(true)}
+                variant="outline"
+                size="sm"
+                className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl gap-1.5"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                Покупки
+              </Button>
             )}
-          </Button>
+            <Button
+              onClick={generatePlan}
+              disabled={generating}
+              size="sm"
+              className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl"
+            >
+              {generating ? (
+                <><RefreshCw className="w-4 h-4 mr-1 animate-spin" /> Генерация...</>
+              ) : (
+                <><Sparkles className="w-4 h-4 mr-1" /> {plan ? 'Обновить' : 'Сгенерировать'}</>
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Опция: учитывать продукты из "Мои продукты" */}
@@ -1194,6 +1302,96 @@ ${otherMeals || 'нет данных'}
         onOpenChange={setShowLimitModal}
         trigger={limitTrigger}
       />
+
+      {/* Shopping List Sheet */}
+      <Sheet open={shoppingListOpen} onOpenChange={setShoppingListOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md bg-slate-950 border-slate-800 flex flex-col">
+          <SheetHeader>
+            <SheetTitle className="text-white flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5 text-emerald-400" />
+              Список покупок
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="mt-4 space-y-3">
+            <p className="text-xs text-slate-400">Для какого периода:</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => { setShoppingScope('week'); setShoppingList(null); }}
+                className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${shoppingScope === 'week' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+              >
+                Вся неделя
+              </button>
+              {DAYS_SHORT.map((label, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setShoppingScope(i); setShoppingList(null); }}
+                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${shoppingScope === i ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <Button
+              onClick={() => void generateShoppingList()}
+              disabled={generatingShoppingList}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 rounded-xl"
+            >
+              {generatingShoppingList
+                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Составляем список...</>
+                : '✨ Составить список'}
+            </Button>
+          </div>
+
+          <ScrollArea className="flex-1 mt-4 -mx-6 px-6">
+            {shoppingList && (
+              <div className="space-y-4 pb-6">
+                {checkedItems.size > 0 && (
+                  <p className="text-xs text-slate-400 text-center">
+                    ✓ {checkedItems.size} из {shoppingList.reduce((s, c) => s + c.items.length, 0)} позиций
+                  </p>
+                )}
+                {shoppingList.map((cat) => (
+                  <div key={cat.category}>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                      {cat.category}
+                    </p>
+                    <div className="space-y-1.5">
+                      {cat.items.map((item) => {
+                        const key = `${cat.category}:${item.name}`;
+                        const checked = checkedItems.has(key);
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => {
+                              const next = new Set(checkedItems);
+                              checked ? next.delete(key) : next.add(key);
+                              setCheckedItems(next);
+                            }}
+                            className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all ${checked ? 'opacity-50 bg-slate-800/30' : 'bg-slate-900/50 hover:bg-slate-800/50'}`}
+                          >
+                            <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${checked ? 'bg-emerald-500 border-emerald-500' : item.have ? 'border-emerald-600' : 'border-slate-600'}`}>
+                              {checked && <span className="text-white text-[10px]">✓</span>}
+                            </div>
+                            <span className={`flex-1 text-sm ${checked ? 'line-through text-slate-500' : 'text-white'}`}>
+                              {item.name}
+                            </span>
+                            <span className="text-xs text-slate-400 flex-shrink-0">{item.amount}</span>
+                            {item.have && !checked && (
+                              <span className="text-[10px] text-emerald-500 flex-shrink-0">есть</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
     </AppLayout>
   );
 }

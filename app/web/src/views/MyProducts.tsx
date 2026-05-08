@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { Package, Search } from 'lucide-react';
+import { Package, Search, Star, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import AppLayout from '@/components/layout/AppLayout';
@@ -110,6 +110,27 @@ export default function MyProducts() {
   const [modalOpen, setModalOpen]             = useState(false);
   const [prefillBarcode, setPrefillBarcode]   = useState('');
   const [deletingId, setDeletingId]           = useState<number | null>(null);
+  const [showStarHint, setShowStarHint]       = useState(false);
+
+  // Показываем подсказку про звёздочку только при первом визите
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem('my_products_star_hint_seen')) {
+        setShowStarHint(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const dismissStarHint = useCallback(() => {
+    try {
+      localStorage.setItem('my_products_star_hint_seen', '1');
+    } catch {
+      // ignore
+    }
+    setShowStarHint(false);
+  }, []);
 
   const skip = page * PAGE_SIZE;
 
@@ -170,7 +191,9 @@ export default function MyProducts() {
 
   const handleToggleFavorite = useCallback((id: number, current: boolean) => {
     favoriteMutation.mutate({ id, is_favorite: !current });
-  }, [favoriteMutation]);
+    // первый тап на звёздочке тоже скрывает onboarding-подсказку
+    if (showStarHint) dismissStarHint();
+  }, [favoriteMutation, showStarHint, dismissStarHint]);
 
   // ── Мутация: сканирование штрихкода ────────────────────────────────────────
   const scanMutation = useMutation({
@@ -298,6 +321,39 @@ export default function MyProducts() {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Onboarding-подсказка о звёздочке */}
+        {showStarHint && items.length > 0 && (
+          <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-3 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+              <Star className="w-5 h-5 text-amber-400 fill-current" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-100">
+                Что это за звёздочка
+              </p>
+              <p className="text-xs text-amber-100/80 mt-0.5 leading-relaxed">
+                Нажмите ⭐ напротив продукта, чтобы добавить его в избранное.
+                ИИ учтёт эти продукты при генерации персонального плана питания.
+              </p>
+              <button
+                type="button"
+                onClick={dismissStarHint}
+                className="mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900 text-xs font-semibold transition-colors"
+              >
+                Понятно
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={dismissStarHint}
+              aria-label="Скрыть подсказку"
+              className="text-amber-200/70 hover:text-amber-100 p-1 rounded-md hover:bg-amber-500/10 flex-shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Product list */}
         {isLoading ? (

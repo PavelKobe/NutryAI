@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { Package, Search } from 'lucide-react';
@@ -32,6 +32,41 @@ function getToken(): string {
   } catch {
     return '';
   }
+}
+
+interface UserProductsListResponse {
+  items: UserProductData[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+/**
+ * Прямой fetch к /api/v1/entities/user_products с плоскими query-параметрами.
+ * SDK client.entities.* оборачивает фильтры в `?query=<JSON>`, а backend
+ * (см. routers/user_products.py:24-48) ожидает плоские `?search=&category=&sort=`.
+ */
+async function fetchUserProducts(params: {
+  search?: string;
+  category?: string;
+  skip?: number;
+  limit?: number;
+  sort?: string;
+}): Promise<UserProductsListResponse> {
+  const url = new URL(
+    `${getAPIBaseURL().replace(/\/$/, '')}/api/v1/entities/user_products`
+  );
+  if (params.search) url.searchParams.set('search', params.search);
+  if (params.category) url.searchParams.set('category', params.category);
+  if (params.sort) url.searchParams.set('sort', params.sort);
+  if (params.skip !== undefined) url.searchParams.set('skip', String(params.skip));
+  if (params.limit !== undefined) url.searchParams.set('limit', String(params.limit));
+
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch user products: ${res.status}`);
+  return res.json();
 }
 
 // Конвертируем поля формы AddProductModal → UserProductCreate для бэкенда
@@ -67,25 +102,33 @@ function buildCreatePayload(values: {
 export default function MyProducts() {
   const queryClient = useQueryClient();
 
-  const [search, setSearch]             = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [page, setPage]                 = useState(0);
-  const [scannerOpen, setScannerOpen]   = useState(false);
-  const [modalOpen, setModalOpen]       = useState(false);
-  const [prefillBarcode, setPrefillBarcode] = useState('');
-  const [deletingId, setDeletingId]     = useState<number | null>(null);
+  const [search, setSearch]                   = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [categoryFilter, setCategoryFilter]   = useState('');
+  const [page, setPage]                       = useState(0);
+  const [scannerOpen, setScannerOpen]         = useState(false);
+  const [modalOpen, setModalOpen]             = useState(false);
+  const [prefillBarcode, setPrefillBarcode]   = useState('');
+  const [deletingId, setDeletingId]           = useState<number | null>(null);
 
   const skip = page * PAGE_SIZE;
 
+  // Debounce поиска — не дёргаем backend на каждое нажатие клавиши
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(0);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
   // ── Запрос списка продуктов ─────────────────────────────────────────────────
   const { data, isLoading } = useQuery({
-    queryKey: ['user_products', { search, category: categoryFilter, skip }],
+    queryKey: ['user_products', { search: debouncedSearch, category: categoryFilter, skip }],
     queryFn: () =>
-      client.entities.user_products.query({
-        query: {
-          ...(search ? { search } : {}),
-          ...(categoryFilter ? { category: categoryFilter } : {}),
-        },
+      fetchUserProducts({
+        search: debouncedSearch || undefined,
+        category: categoryFilter || undefined,
         skip,
         limit: PAGE_SIZE,
         sort: '-created_at',
@@ -93,8 +136,8 @@ export default function MyProducts() {
     staleTime: 30_000,
   });
 
-  const items: UserProductData[] = (data as { data?: { items?: UserProductData[] } })?.data?.items ?? [];
-  const total: number = (data as { data?: { total?: number } })?.data?.total ?? 0;
+  const items: UserProductData[] = data?.items ?? [];
+  const total: number = data?.total ?? 0;
 
   // ── Мутация: удаление ───────────────────────────────────────────────────────
   const deleteMutation = useMutation({
@@ -173,7 +216,8 @@ export default function MyProducts() {
   }, [createMutation]);
 
   // ── Сброс пагинации при смене фильтров ─────────────────────────────────────
-  const handleSearch = (val: string) => { setSearch(val); setPage(0); };
+  // Поиск: сброс page происходит через debounce-effect выше.
+  const handleSearch = (val: string) => { setSearch(val); };
   const handleCategory = (val: string) => { setCategoryFilter(val === 'all' ? '' : val); setPage(0); };
 
   return (
@@ -266,10 +310,10 @@ export default function MyProducts() {
           <div className="p-10 rounded-2xl bg-slate-900/50 border border-slate-800/50 text-center">
             <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
             <p className="text-slate-400 mb-1">
-              {search || categoryFilter ? 'Ничего не найдено' : 'Коллекция пуста'}
+              {debouncedSearch || categoryFilter ? 'Ничего не найдено' : 'Коллекция пуста'}
             </p>
             <p className="text-sm text-slate-500">
-              {search || categoryFilter
+              {debouncedSearch || categoryFilter
                 ? 'Попробуйте изменить поиск или фильтр'
                 : 'Отсканируйте штрихкод или добавьте продукт вручную'}
             </p>

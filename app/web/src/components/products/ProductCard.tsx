@@ -3,6 +3,11 @@
 import { useState } from 'react';
 import { Package, Star, Trash2, Flame, ChevronDown, ChevronUp, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { getCategoryLabel } from '@/lib/product-categories';
 import { formatStock } from '@/lib/parseAmount';
 
@@ -122,17 +127,35 @@ export default function ProductCard({
 
         {/* Action buttons */}
         <div className="flex flex-col items-center gap-1 flex-shrink-0">
-          <button
-            onClick={() => onToggleFavorite(item.id, item.is_favorite)}
-            aria-label={item.is_favorite ? 'Убрать из избранного' : 'Добавить в избранное'}
-            className={`p-1.5 rounded-lg transition-colors ${
-              item.is_favorite
-                ? 'text-amber-400 hover:text-amber-300'
-                : 'text-slate-600 hover:text-amber-400'
-            }`}
-          >
-            <Star className={`w-4 h-4 ${item.is_favorite ? 'fill-current' : ''}`} />
-          </button>
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => onToggleFavorite(item.id, item.is_favorite)}
+                aria-label={item.is_favorite ? 'Убрать из избранного' : 'Добавить в избранное'}
+                title={
+                  item.is_favorite
+                    ? 'Убрать из избранного'
+                    : 'В избранное — учесть при генерации плана питания'
+                }
+                className={`p-1.5 rounded-lg transition-colors ${
+                  item.is_favorite
+                    ? 'text-amber-400 hover:text-amber-300'
+                    : 'text-slate-600 hover:text-amber-400'
+                }`}
+              >
+                <Star className={`w-4 h-4 ${item.is_favorite ? 'fill-current' : ''}`} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent
+              side="top"
+              align="end"
+              className="bg-slate-800 border border-slate-700 text-slate-100 text-xs max-w-[220px]"
+            >
+              {item.is_favorite
+                ? 'В избранном — учитывается в плане питания. Клик — убрать.'
+                : 'Добавьте в избранное, чтобы включить в персональный план питания.'}
+            </TooltipContent>
+          </Tooltip>
           <button
             onClick={() => setExpanded((v) => !v)}
             className="p-1.5 rounded-lg text-slate-600 hover:text-slate-300 transition-colors"

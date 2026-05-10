@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,6 +10,9 @@ import { persistSessionToken, registerWithEmail } from '@/lib/emailAuth';
 import { loginWithYandex, loginWithVkId } from '@/lib/oauthAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { PrivacyPolicyDialog } from '@/views/landing/PrivacyPolicyDialog';
+import { TermsOfUseDialog } from '@/views/landing/TermsOfUseDialog';
 import {
   Form,
   FormControl,
@@ -22,14 +26,20 @@ const schema = z.object({
   name: z.string().optional(),
   email: z.string().min(1, 'Введите email').email('Некорректный email'),
   password: z.string().min(8, 'Пароль не короче 8 символов'),
+  consent: z.literal(true, {
+    errorMap: () => ({ message: 'Необходимо согласие, чтобы продолжить' }),
+  }),
 });
 
 type FormValues = z.infer<typeof schema>;
 
 export default function Register() {
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: '', email: '', password: '' },
+    defaultValues: { name: '', email: '', password: '', consent: false as unknown as true },
   });
 
   const { isSubmitting } = form.formState;
@@ -117,6 +127,47 @@ export default function Register() {
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="consent"
+              render={({ field }) => (
+                <FormItem className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <FormControl>
+                      <Checkbox
+                        id="consent"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="mt-0.5 border-slate-600 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                      />
+                    </FormControl>
+                    <FormLabel
+                      htmlFor="consent"
+                      className="text-sm font-normal text-slate-300 leading-snug cursor-pointer"
+                    >
+                      Согласен с{' '}
+                      <button
+                        type="button"
+                        onClick={() => setTermsOpen(true)}
+                        className="text-emerald-400 hover:underline underline-offset-2"
+                      >
+                        пользовательским соглашением
+                      </button>
+                      {' '}и{' '}
+                      <button
+                        type="button"
+                        onClick={() => setPrivacyOpen(true)}
+                        className="text-emerald-400 hover:underline underline-offset-2"
+                      >
+                        политикой обработки данных
+                      </button>
+                    </FormLabel>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <Button
               type="submit"
               disabled={isSubmitting}
@@ -167,6 +218,8 @@ export default function Register() {
           </Link>
         </p>
       </div>
+      <PrivacyPolicyDialog open={privacyOpen} onOpenChange={setPrivacyOpen} />
+      <TermsOfUseDialog open={termsOpen} onOpenChange={setTermsOpen} />
     </div>
   );
 }

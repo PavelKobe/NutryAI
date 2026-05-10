@@ -65,6 +65,46 @@ def decode_access_token(token: str) -> Dict[str, Any]:
         raise AccessTokenError("Invalid authentication token") from exc
 
 
+_VERIFICATION_SCOPE = "email_verify"
+_VERIFICATION_TOKEN_EXPIRES_MINUTES = 15
+
+
+def create_verification_token(user_id: str) -> str:
+    """Short-lived JWT for the email verification step (scope=email_verify, 15 min)."""
+    if not settings.jwt_secret_key:
+        raise ValueError("JWT secret key is not configured")
+
+    now = datetime.now(timezone.utc)
+    claims = {
+        "sub": user_id,
+        "scope": _VERIFICATION_SCOPE,
+        "iat": now,
+        "nbf": now,
+        "exp": now + timedelta(minutes=_VERIFICATION_TOKEN_EXPIRES_MINUTES),
+    }
+    return jwt.encode(claims, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
+def decode_verification_token(token: str) -> str:
+    """Decode and validate a verification-scoped JWT, returning user_id."""
+    if not settings.jwt_secret_key:
+        raise AccessTokenError("Authentication service is misconfigured")
+    try:
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    except ExpiredSignatureError as exc:
+        raise AccessTokenError("Verification token expired") from exc
+    except JWTError as exc:
+        raise AccessTokenError("Invalid verification token") from exc
+
+    if payload.get("scope") != _VERIFICATION_SCOPE:
+        raise AccessTokenError("Token scope mismatch")
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise AccessTokenError("Verification token has no subject")
+    return str(user_id)
+
+
 def decode_expired_token(token: str, max_age_days: int = 7) -> Dict[str, Any]:
     """Decode an expired JWT without verifying expiration (for refresh).
 

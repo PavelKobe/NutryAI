@@ -153,12 +153,25 @@ class YandexOAuthService:
         name: str,
         yandex_id: str,
     ) -> User:
-        """Return existing user or create a new OAuth-only user (no password)."""
+        """Return existing user or create a new OAuth-only user (no password).
+
+        Yandex has already confirmed ownership of the email, so we set
+        email_verified=true. If the existing user had email_verified=false
+        (started email registration but never confirmed), we mark them
+        verified now and drop any pending verification code.
+        """
         auth_service = AuthService(db)
         user = await auth_service.get_user_by_email(email)
+        now = datetime.now(timezone.utc)
 
         if user:
-            user.last_login = datetime.now(timezone.utc)
+            user.last_login = now
+            if not getattr(user, "email_verified", False):
+                user.email_verified = True
+                user.email_verified_at = now
+                from services.verification import delete_code
+
+                await delete_code(db, user.id)
             await db.commit()
             await db.refresh(user)
             logger.info("Yandex login: existing user %s", email)
@@ -169,7 +182,9 @@ class YandexOAuthService:
             email=email,
             name=name,
             password_hash=None,
-            last_login=datetime.now(timezone.utc),
+            email_verified=True,
+            email_verified_at=now,
+            last_login=now,
         )
         db.add(user)
         await db.commit()
@@ -325,12 +340,24 @@ class VkIdOAuthService:
         name: str,
         vk_id: str,
     ) -> User:
-        """Return existing user or create a new OAuth-only user (no password)."""
+        """Return existing user or create a new OAuth-only user (no password).
+
+        VK has confirmed ownership of the VK account (and the email tied to it,
+        if any). We set email_verified=true; if the existing user was unverified,
+        mark them verified now and drop any pending verification code.
+        """
         auth_service = AuthService(db)
         user = await auth_service.get_user_by_email(email)
+        now = datetime.now(timezone.utc)
 
         if user:
-            user.last_login = datetime.now(timezone.utc)
+            user.last_login = now
+            if not getattr(user, "email_verified", False):
+                user.email_verified = True
+                user.email_verified_at = now
+                from services.verification import delete_code
+
+                await delete_code(db, user.id)
             await db.commit()
             await db.refresh(user)
             logger.info("VK login: existing user %s", email)
@@ -341,7 +368,9 @@ class VkIdOAuthService:
             email=email,
             name=name,
             password_hash=None,
-            last_login=datetime.now(timezone.utc),
+            email_verified=True,
+            email_verified_at=now,
+            last_login=now,
         )
         db.add(user)
         await db.commit()

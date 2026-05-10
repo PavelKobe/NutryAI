@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { persistSessionToken, registerWithEmail } from '@/lib/emailAuth';
+import { registerWithEmail } from '@/lib/emailAuth';
 import { loginWithYandex, loginWithVkId } from '@/lib/oauthAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,15 +46,14 @@ export default function Register() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      const { token } = await registerWithEmail(
+      const { verification_token, email } = await registerWithEmail(
         values.email,
         values.password,
         values.name?.trim() || undefined,
       );
-      persistSessionToken(token);
-      toast.success('Добро пожаловать в NutryAI!');
-      await new Promise((r) => setTimeout(r, 700));
-      window.location.href = '/onboarding';
+      toast.success('Код отправлен на email');
+      const params = new URLSearchParams({ token: verification_token, email });
+      window.location.href = `/verify-email?${params.toString()}`;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Ошибка регистрации';
       form.setError('email', { message });

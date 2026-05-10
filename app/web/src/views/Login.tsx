@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { loginWithEmail, persistSessionToken } from '@/lib/emailAuth';
+import { EmailNotVerifiedError, loginWithEmail, persistSessionToken } from '@/lib/emailAuth';
 import { loginWithYandex, loginWithVkId } from '@/lib/oauthAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,12 @@ export default function Login() {
       await new Promise((r) => setTimeout(r, 700));
       window.location.href = '/dashboard';
     } catch (err) {
+      if (err instanceof EmailNotVerifiedError) {
+        toast.info('Подтвердите email — мы отправили новый код');
+        const params = new URLSearchParams({ token: err.verificationToken, email: err.emailAddress });
+        window.location.href = `/verify-email?${params.toString()}`;
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Ошибка входа');
     } finally {
       setLoading(false);

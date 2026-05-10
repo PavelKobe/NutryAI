@@ -38,3 +38,24 @@ class AuthTokenResponse(BaseModel):
     token: str
     token_type: str = "Bearer"
     expires_at: int  # unix seconds
+
+
+class EmailVerificationStartResponse(BaseModel):
+    """Returned by /register and /login (when email_verified=false)."""
+
+    verification_token: str
+    email: str
+
+
+class VerifyEmailRequest(BaseModel):
+    verification_token: str
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class ResendVerificationRequest(BaseModel):
+    verification_token: str
+
+
+class ResendVerificationResponse(BaseModel):
+    ok: bool
+    can_resend_at: Optional[int] = None  # unix seconds

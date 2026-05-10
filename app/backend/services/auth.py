@@ -32,11 +32,22 @@ class AuthService:
         name: Optional[str] = None,
     ) -> User:
         normalized = email.strip().lower()
-        existing = await self.get_user_by_email(normalized)
-        if existing:
-            raise ValueError("Пользователь с таким email уже зарегистрирован")
-
         display_name = (name or "").strip() or normalized.split("@", 1)[0]
+        existing = await self.get_user_by_email(normalized)
+        if existing is not None:
+            # Анти-enumeration: если email уже есть, но НЕ подтверждён, разрешаем
+            # повторную регистрацию (перезаписываем пароль/имя и заново
+            # отправляем код подтверждения снаружи). Так UI не палит факт занятости.
+            if getattr(existing, "email_verified", False):
+                raise ValueError("Пользователь с таким email уже зарегистрирован")
+            existing.password_hash = hash_password(password)
+            if name and name.strip():
+                existing.name = display_name
+            existing.last_login = datetime.now(timezone.utc)
+            await self.db.commit()
+            await self.db.refresh(existing)
+            return existing
+
         user = User(
             id=str(uuid.uuid4()),
             email=normalized,

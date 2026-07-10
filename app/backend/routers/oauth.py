@@ -8,6 +8,7 @@ from core.config import settings
 from core.database import get_db
 from services.oauth import YandexOAuthService, VkIdOAuthService
 from services.auth import AuthService
+from services.subscription import SubscriptionService
 
 logger = logging.getLogger(__name__)
 
@@ -60,11 +61,14 @@ async def yandex_callback(
             yandex_id=user_info["yandex_id"],
         )
 
-        # 5. Issue app JWT
+        # 5. Гарантируем наличие подписки (idempotent: ON CONFLICT DO NOTHING)
+        await SubscriptionService(db).assign_free_plan(user.id)
+
+        # 6. Issue app JWT
         auth_service = AuthService(db)
         token, _, _ = await auth_service.issue_app_token(user)
 
-        # 6. Redirect to frontend callback with token
+        # 7. Redirect to frontend callback with token
         callback = _frontend_callback()
         logger.info("Yandex OAuth success for %s", user_info["email"])
         return RedirectResponse(f"{callback}?token={token}")
@@ -122,11 +126,14 @@ async def vkid_callback(
             vk_id=str(user_id),
         )
 
-        # 5. Issue app JWT
+        # 5. Гарантируем наличие подписки (idempotent: ON CONFLICT DO NOTHING)
+        await SubscriptionService(db).assign_free_plan(user.id)
+
+        # 6. Issue app JWT
         auth_service = AuthService(db)
         token, _, _ = await auth_service.issue_app_token(user)
 
-        # 6. Redirect to frontend callback with token
+        # 7. Redirect to frontend callback with token
         callback = _frontend_callback()
         logger.info("VK ID OAuth success for %s", email)
         return RedirectResponse(f"{callback}?token={token}")

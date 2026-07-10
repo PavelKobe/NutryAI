@@ -8,11 +8,38 @@ import io
 import logging
 from typing import AsyncGenerator
 
+import httpx
 from core.config import settings
 from openai import AsyncOpenAI
 from schemas.aihub import GenImgRequest, GenImgResponse, GenTxtRequest, GenTxtResponse
 
 logger = logging.getLogger(__name__)
+
+_http_client: httpx.AsyncClient | None = None
+
+
+def _proxied_http_client() -> httpx.AsyncClient | None:
+    """
+    httpx-клиент через APP_AI_PROXY, если переменная задана.
+
+    Прокси нужен только для AI-провайдера (Cloudflare перед openrouter.ai режет
+    дата-центровые IP). Остальной исходящий трафик — YooKassa, OAuth Яндекса и VK —
+    должен идти напрямую, поэтому HTTPS_PROXY на весь процесс не подходит.
+
+    Клиент один на процесс: AIHubService создаётся на каждый запрос, и новый
+    AsyncClient на каждый вызов протекал бы сокетами.
+    """
+    global _http_client
+
+    proxy = getattr(settings, "app_ai_proxy", None)
+    if not proxy:
+        return None
+
+    if _http_client is None:
+        _http_client = httpx.AsyncClient(proxy=proxy, timeout=httpx.Timeout(600.0, connect=15.0))
+        logger.info("AI requests go through proxy %s", proxy)
+
+    return _http_client
 
 
 class InvalidImageInputError(ValueError):
@@ -29,6 +56,7 @@ class AIHubService:
         self.client = AsyncOpenAI(
             api_key=settings.app_ai_key,
             base_url=settings.app_ai_base_url.rstrip("/"),
+            http_client=_proxied_http_client(),
         )
 
     def _convert_message(self, msg) -> dict:

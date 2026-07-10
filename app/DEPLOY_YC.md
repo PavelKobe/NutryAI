@@ -37,6 +37,7 @@
 | `PYTHON_BACKEND_URL` | Публичный URL API, например `https://api.nutriaidiary.com`. |
 | `APP_AI_BASE_URL` | База OpenRouter: `https://openrouter.ai/api/v1`. |
 | `APP_AI_KEY` | API-ключ OpenRouter. |
+| `APP_AI_PROXY` | Необязательный. Прокси **только** для вызовов AI (`http://…` или `socks5://127.0.0.1:40000`). Нужен, когда Cloudflare перед `openrouter.ai` блокирует IP VM: `403 {"success": false, "error": "Access denied by security policy."}`. Остальной трафик (YooKassa, OAuth) идёт напрямую — `HTTPS_PROXY` на весь процесс задавать нельзя. |
 | `ENVIRONMENT` | Для продакшена: **`prod`** (иначе может подхватываться `app/backend/.env_development` и dev-режим). |
 
 ### Рекомендуемые (есть разумные дефолты, лучше задать явно)

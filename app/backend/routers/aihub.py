@@ -8,22 +8,43 @@ import json
 import logging
 from typing import Any
 
+from core.database import db_manager
 from dependencies.subscription import check_ai_subscription
 from fastapi import APIRouter, Depends, HTTPException, status
 from schemas.auth import UserResponse
 from schemas.aihub import GenImgRequest, GenImgResponse, GenTxtRequest
 from services.aihub import AIHubService, InvalidImageInputError
+from services.subscription import SubscriptionService
 from sse_starlette.sse import EventSourceResponse
 
 logger = logging.getLogger(__name__)
 
 
+async def _refund_ai_request(user_id: str) -> None:
+    """
+    Возвращает списанный запрос в квоту, когда AI-провайдер ничего не отдал.
+
+    Открывает собственную сессию: в SSE-генераторе сессия из Depends(get_db) уже закрыта.
+    Сбой возврата не должен подменять исходную ошибку — только логируем.
+    """
+    try:
+        await db_manager.ensure_initialized()
+        async with db_manager.async_session_maker() as session:
+            await SubscriptionService(session).refund_ai_request(user_id)
+    except Exception:
+        logger.exception("Failed to refund AI request for user %s", user_id)
+
+
 def _try_extract_message_from_dict(data: dict) -> str | None:
     """Try to extract message field from a dictionary."""
     # Try to extract error.message format
-    if "error" in data and isinstance(data["error"], dict):
-        if "message" in data["error"]:
-            return data["error"]["message"]
+    if "error" in data:
+        error = data["error"]
+        if isinstance(error, dict) and "message" in error:
+            return error["message"]
+        # Gateways (Cloudflare WAF) answer with a plain string: {"success": false, "error": "..."}
+        if isinstance(error, str) and error:
+            return error
     # Try to extract message field directly
     if "message" in data:
         return data["message"]
@@ -101,7 +122,7 @@ router = APIRouter(prefix="/api/v1/aihub", tags=["aihub"])
 @router.post("/gentxt")
 async def generate_text(
     request: GenTxtRequest,
-    _user: UserResponse = Depends(check_ai_subscription),
+    user: UserResponse = Depends(check_ai_subscription),
 ):
     """
     Generate Text endpoint (supports text and image input).
@@ -124,11 +145,16 @@ async def generate_text(
         if request.stream:
             # Streaming response - wrap content in JSON for SSE
             async def event_generator():
+                delivered = False
                 try:
                     async for content in service.gentxt_stream(request):
+                        delivered = True
                         yield json.dumps({"content": content})
                 except Exception as e:
                     logger.error(f"Stream error: {e}")
+                    # Частично полученный ответ считаем доставленным — квоту не возвращаем
+                    if not delivered:
+                        await _refund_ai_request(user.id)
                     yield json.dumps({"content": f"[ERROR] {extract_error_message(e)}"})
                 finally:
                     yield "[DONE]"
@@ -141,9 +167,11 @@ async def generate_text(
 
     except ValueError as e:
         logger.error(f"AI service configuration error: {e}")
+        await _refund_ai_request(user.id)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=extract_error_message(e))
     except Exception as e:
         logger.error(f"Text generation failed: {e}")
+        await _refund_ai_request(user.id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=extract_error_message(e),

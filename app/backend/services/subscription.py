@@ -158,6 +158,25 @@ class SubscriptionService:
         )
         await self.db.commit()
 
+    async def refund_ai_request(self, user_id: str) -> None:
+        """
+        Возвращает в дневную квоту запрос, списанный в check_and_increment_ai_request,
+        когда вызов AI-провайдера не дал пользователю ни одного токена.
+
+        Счётчик за прошлые дни не трогаем: requests_date должен совпадать с сегодняшним,
+        иначе списание уже сброшено суточным ресетом.
+        """
+        await self.db.execute(
+            update(UserSubscription)
+            .where(
+                UserSubscription.user_id == user_id,
+                UserSubscription.requests_date == date.today(),
+                UserSubscription.ai_requests_today > 0,
+            )
+            .values(ai_requests_today=UserSubscription.ai_requests_today - 1)
+        )
+        await self.db.commit()
+
     async def get_subscription_status(self, user_id: str) -> SubscriptionStatusResponse:
         """Возвращает текущую подписку пользователя и список всех доступных планов."""
         result = await self.db.execute(

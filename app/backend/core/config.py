@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     micronutrients_model: str = "openai/gpt-4o-mini"
+    # Gemini недоступен нашему ключу: OpenRouter отвечает "Blocked by Google"
+    # и через AI Studio, и через Vertex (проверено 2026-07-10).
+    nutrient_insight_model: str = "openai/gpt-4o-mini"
     cors_origins: str = (
         "https://nutriaidiary.com,"
         "https://www.nutriaidiary.com,"

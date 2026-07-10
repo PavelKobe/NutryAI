@@ -654,7 +654,7 @@ ${productsSection}
       const response = await client.ai.genimg(
         {
           prompt: `Аппетитная фотография блюда "${mealName}". Вид сверху, красивая сервировка на тарелке, профессиональная food-фотография, тёплое освещение, высокое качество.`,
-          model: 'gemini-2.5-flash-image',
+          model: 'google/gemini-2.5-flash-image',
           size: '1024x1024',
           n: 1,
         },

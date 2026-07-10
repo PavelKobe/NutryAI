@@ -5,6 +5,7 @@ from datetime import datetime, date
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import settings
 from models.meal_logs import Meal_logs
 from models.user_profiles import User_profiles
 
@@ -128,13 +129,15 @@ class NutrientInsightsService:
         return prompt
 
     async def get_ai_insight(
-        self, 
-        user_id: str, 
+        self,
+        user_id: str,
         days: int = 7,
-        model: str = "gemini-2.5-pro"
+        model: str | None = None
     ) -> str:
         """Get AI-generated nutrient insight"""
         try:
+            model = model or getattr(settings, "nutrient_insight_model", "openai/gpt-4o-mini")
+
             # Get nutrient summary
             summary = await self.get_user_nutrient_summary(user_id, days)
             

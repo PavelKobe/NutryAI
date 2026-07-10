@@ -27,7 +27,7 @@ class NutrientInsightResponse(BaseModel):
 @router.get("", response_model=NutrientInsightResponse)
 async def get_nutrient_insight(
     days: int = Query(7, ge=1, le=30, description="Number of days to analyze"),
-    model: str = Query("gemini-2.5-pro", description="AI model to use"),
+    model: str | None = Query(None, description="AI model; по умолчанию settings.nutrient_insight_model"),
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

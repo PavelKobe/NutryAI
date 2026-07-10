@@ -132,7 +132,7 @@ export default function Chat() {
           ...chatHistory,
           { role: 'user', content: text.trim() },
         ],
-        model: 'anthropic/claude-sonnet-4-5',
+        model: 'anthropic/claude-sonnet-4.5',
         stream: true,
         onChunk: (chunk: { content?: string }) => {
           fullResponse += chunk.content || '';
